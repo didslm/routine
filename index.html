@@ -1,0 +1,1029 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Climbing Routine — Daily Page</title>
+  <meta name="theme-color" content="#0f1418" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f1418;
+      --bg-2: #0b0f12;
+      --card: #111820;
+      --card-2: #0c1218;
+      --ink: #eaf0f6;
+      --muted: #b9c4d0;
+      --accent: #7bd9ff;
+      --accent-2: #b1ff9e;
+      --danger: #ffb26b;
+      --line: #1d2a35;
+      --shadow: 0 10px 30px rgba(0,0,0,0.35);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 20% -10%, rgba(123,217,255,0.18), transparent 60%),
+        radial-gradient(1000px 500px at 90% 10%, rgba(177,255,158,0.12), transparent 60%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 48px 20px 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .quote {
+      font-family: "Fraunces", serif;
+      font-weight: 700;
+      font-size: clamp(1.6rem, 3.2vw, 2.6rem);
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin: 0 0 8px;
+    }
+
+    .quote #quoteAuthor {
+      font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .today {
+      margin-top: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 20px 64px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    .card {
+      background: linear-gradient(160deg, var(--card) 0%, var(--card-2) 100%);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-controls {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .timer-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: var(--ink);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      font-size: 0.9rem;
+    }
+
+    .timer-btn.active {
+      border-color: rgba(123,217,255,0.5);
+      background: rgba(123,217,255,0.18);
+      color: #0c1a14;
+    }
+
+    .timer-display {
+      font-size: 0.85rem;
+      color: var(--muted);
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      min-width: 62px;
+      text-align: center;
+    }
+
+    .card h2 {
+      font-family: "Fraunces", serif;
+      font-size: 1.4rem;
+      margin: 0 0 6px;
+    }
+
+    .card-body {
+      transition: max-height 200ms ease-out, opacity 200ms ease-out;
+      max-height: 2000px;
+      opacity: 1;
+    }
+
+    .card.collapsed .card-body {
+      display: none;
+    }
+
+    .card p {
+      margin: 6px 0 12px;
+      color: var(--muted);
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--ink);
+      line-height: 1.5;
+    }
+
+    li { margin: 8px 0; }
+
+    .checklist {
+      list-style: none;
+      padding: 0;
+      margin: 8px 0 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .checklist label {
+      display: flex;
+      align-items: start;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      cursor: pointer;
+    }
+
+    .checklist input {
+      margin-top: 3px;
+      accent-color: var(--accent);
+    }
+
+    .images {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .images img {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .notice {
+      border-left: 3px solid var(--danger);
+      padding-left: 12px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 20px;
+    }
+
+    .btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    button {
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: var(--ink);
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    button:hover { border-color: rgba(255,255,255,0.22); }
+
+    .progress {
+      width: 100%;
+      height: 18px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+      margin-top: 8px;
+      position: relative;
+    }
+
+    .progress > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transition: width 200ms ease-out;
+    }
+
+    .progress-label {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: 0.8rem;
+      color: var(--ink);
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+
+    .system-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+      margin-top: 10px;
+    }
+
+    .system-block {
+      background:
+        radial-gradient(120px 80px at 85% 20%, rgba(123,217,255,0.12), transparent 60%),
+        rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+
+    .system-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: 0.02em;
+    }
+
+    .system-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 0.95rem;
+      margin: 6px 0;
+    }
+
+    .system-note { color: var(--muted); font-size: 0.85rem; }
+
+    .system-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0 4px;
+    }
+
+    .toggle-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.05);
+      font-family: inherit;
+      color: var(--ink);
+      cursor: pointer;
+    }
+
+    .pill-note {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .toggle-pill[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .toggle-pill .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.3);
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.08);
+    }
+
+    .toggle-pill.active {
+      border-color: rgba(177,255,158,0.5);
+      background: rgba(177,255,158,0.12);
+      color: #0c1a14;
+    }
+
+    .toggle-pill.active .dot {
+      background: #0c1a14;
+      box-shadow: 0 0 0 2px rgba(12,26,20,0.25);
+    }
+
+    .rule-strip {
+      display: grid;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .action-row {
+      margin-top: 6px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      font-size: 0.9rem;
+    }
+
+    .chip strong { font-weight: 600; }
+
+    .chip.min { border-color: rgba(123,217,255,0.35); }
+    .chip.bonus { border-color: rgba(177,255,158,0.35); }
+    .chip.lock { border-color: rgba(255,178,107,0.35); }
+
+    .token {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      gap: 12px;
+      align-items: center;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px dashed rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.025);
+    }
+
+    .token-face {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-size: 1.5rem;
+      background: linear-gradient(160deg, rgba(123,217,255,0.2), rgba(177,255,158,0.2));
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .path {
+      display: grid;
+      gap: 6px;
+    }
+
+    .challenge-card {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.035);
+    }
+
+    .challenge-card button {
+      justify-self: start;
+    }
+
+ 
+
+    @media (prefers-reduced-motion: no-preference) {
+      .card { animation: rise 500ms ease-out; }
+      .card:nth-child(2) { animation-delay: 60ms; }
+      .card:nth-child(3) { animation-delay: 120ms; }
+      .card:nth-child(4) { animation-delay: 180ms; }
+      .card:nth-child(5) { animation-delay: 240ms; }
+      .card:nth-child(6) { animation-delay: 300ms; }
+    }
+
+    @keyframes rise {
+      from { transform: translateY(8px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="quote">
+      <div id="quoteText">—</div>
+      <div id="quoteAuthor"></div>
+    </div>
+    <div class="today">
+      <span id="today"></span>
+      <span id="streak"></span>
+    </div>
+  </header>
+
+  <main>
+    <section class="card" id="system">
+      <div class="rule-strip" style="margin-bottom:12px;">
+        <div class="chip-row data-row">
+          <div class="chip min">🧩 Mobility <strong id="minimumStatus">–</strong></div>
+          <div class="chip bonus">⚡ ARC · Power · Core <strong id="bonusStatus">0</strong></div>
+          <div class="chip lock">🔥 Streak <strong id="minimumStreak">0</strong></div>
+        </div>
+        <div class="chip-row action-row">
+          <button id="recoveryDay" class="toggle-pill" type="button" aria-pressed="false">
+            <span class="dot"></span> 🌿 Recovery
+          </button>
+          <button id="skipToken" class="toggle-pill" type="button" aria-pressed="false">
+            <span class="dot"></span> 🎟️ Skip <span class="pill-note" id="skipStatus">1 / week</span>
+          </button>
+        </div>
+      </div>
+      <div class="system-grid">
+        <div class="system-block">
+          <div class="system-title">🏁 XP Path</div>
+          <div class="path">
+            <div class="progress">
+              <span id="levelProgress"></span>
+              <div class="progress-label" id="levelLabel">0 / 20 XP · L1</div>
+            </div>
+          </div>
+        </div>
+        <div class="system-block">
+          <div class="system-title">🎲 Weekly Challenge</div>
+          <div class="challenge-card">
+            <div id="weeklyChallenge">—</div>
+            <small class="system-note">Auto‑set each week</small>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <span class="tag">Daily · 20–25 min</span>
+      <h2>1. Daily Mobility (Non‑Negotiable)</h2>
+      <div class="card-controls">
+        <button class="timer-btn" data-timer="mobility" aria-label="Start timer for mobility">▶</button>
+        <span class="timer-display" data-display="mobility">00:00</span>
+      </div>
+      <div class="card-body">
+        <p>Unlock hips, shoulders, spine, ankles. Slow nose breathing.</p>
+        <ul>
+          <li><strong>Hips:</strong> deep squat hold 2–3 min total · frog stretch 2 x 60–90s · cossack squats 2 x 8/side</li>
+          <li><strong>Spine:</strong> thoracic rotations 2 x 10/side · cat–cow 2 x 8</li>
+          <li><strong>Shoulders:</strong> internal + external rotation stretch 2 x 45s · overhead flexion stretch 2 x 45s</li>
+          <li><strong>Ankles:</strong> knee-to-wall dorsiflexion 2 x 10/side · calf stretch bent + straight 2 x 45s</li>
+        </ul>
+        <div class="images">
+          <img src="https://www.commonclimber.com/uploads/7/1/0/5/71057025/32-cc-hip-heel_orig.jpg" alt="Hip mobility" />
+          <img src="https://images.squarespace-cdn.com/content/v1/60a8049e9cfc63389fa57688/bf854118-fe97-4f67-a1a9-7205bff1ac4b/ankle-mobility.jpg" alt="Ankle mobility" />
+          <img src="https://www.functionalmovement.com/exercises/image/22404" alt="Shoulder mobility" />
+          <img src="https://www.functionalmovement.com/exercises/image/28027" alt="Shoulder stretch" />
+          <img src="https://images.squarespace-cdn.com/content/v1/5f5e8592d2b0854b18af6975/33af15de-b2f8-40f3-a4f5-f5a45ea453a3/Thoracic%2BRotations.jpg" alt="Thoracic rotations" />
+        </div>
+      </div>
+      <ul class="checklist" data-section="mobility">
+        <li><label><input type="checkbox" data-item="mobility" />Completed today</label></li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <span class="tag">3–4x/week</span>
+      <h2>2. Climbing‑Specific Flexibility</h2>
+      <div class="card-controls">
+        <button class="timer-btn" data-timer="flex" aria-label="Start timer for flexibility">▶</button>
+        <span class="timer-display" data-display="flex">00:00</span>
+      </div>
+      <div class="card-body">
+        <ul>
+          <li>High‑step holds against wall: 3 reps/side, hold 20–30s</li>
+          <li>Drop‑knee stretch: 3 x 20–30s/side</li>
+          <li>Lock‑off shoulder stretch: 2 x 30s/side</li>
+        </ul>
+        <div class="images">
+          <img src="https://latticetraining.com/app/uploads/2024/08/high-step-ajmddy.jpg" alt="High step" />
+          <img src="https://daks2k3a4ib2z.cloudfront.net/5732511283fb5b4c17492b27/57eb39935f0cf16932e91d38_image00.jpg" alt="Drop knee" />
+          <img src="https://moonclimbing.com/media/wysiwyg/blog/Training/Shoulder-Stability-Exercises-For-Climbers-07.jpg" alt="Lock-off" />
+          <img src="https://moonclimbing.com/media/wysiwyg/blog/Training/Shoulder-Stability-Exercises-For-Climbers-04.jpg" alt="Shoulder stability" />
+        </div>
+      </div>
+      <ul class="checklist" data-section="flex">
+        <li><label><input type="checkbox" data-item="flex" />Completed today</label></li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <span class="tag">2–3x/week</span>
+      <h2>3. Endurance Base (ARC)</h2>
+      <div class="card-controls">
+        <button class="timer-btn" data-timer="arc" aria-label="Start timer for ARC">▶</button>
+        <span class="timer-display" data-display="arc">00:00</span>
+      </div>
+      <div class="card-body">
+        <p>Easy intensity, you can talk. Focus on footwork + relaxed grip.</p>
+        <ul>
+          <li>25–45 minutes continuous movement</li>
+          <li>Breathing slow; if forearms burn, intensity is too high</li>
+        </ul>
+        <div class="images">
+          <img src="https://www.trycrawl.com/assets/external/631bde72a04198b543acc219_62612a94cbaafb3172585654_fdfd88.png" alt="ARC training" />
+          <img src="https://unlevel-edge.com/cdn/shop/articles/DSC_0159_03545502-96d3-49ac-983f-aca9039a1c4a.jpg?v=1756949219&width=1100" alt="ARC wall" />
+          <img src="https://cdn.prod.website-files.com/67533f79749796f1caabfb35/675344f976397c33388c77f0_1488786_10152052160883785_758737151_n.jpeg" alt="ARC endurance" />
+        </div>
+      </div>
+      <ul class="checklist" data-section="arc">
+        <li><label><input type="checkbox" data-item="arc" />Completed today</label></li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <span class="tag">2x/week max</span>
+      <h2>4. Power‑Endurance (Pain Zone)</h2>
+      <div class="card-controls">
+        <button class="timer-btn" data-timer="pe" aria-label="Start timer for power endurance">▶</button>
+        <span class="timer-display" data-display="pe">00:00</span>
+      </div>
+      <div class="card-body">
+        <ul>
+          <li><strong>4x4s:</strong> 4 boulders @ ~80%, climb all back‑to‑back, rest 2–3 min, repeat 4 rounds</li>
+          <li><strong>Linked routes:</strong> 2 medium routes with no rest, rest 3 min, 4–6 sets</li>
+        </ul>
+        <div class="images">
+          <img src="https://static1.squarespace.com/static/59147685ebbd1a46db5e4cfb/t/661e17aee0dc5934a05735dc/1707209078261/_4183447.jpg?format=1500w" alt="Power endurance" />
+          <img src="https://cdn.shopify.com/s/files/1/0488/5027/2409/files/powerendurance2_600x600.jpg?v=1660751652" alt="4x4s" />
+          <img src="https://images.squarespace-cdn.com/content/v1/5d1dcebb0e55ad00016524c6/83fe2607-f321-46dc-ad72-b6c8c046092e/Nebulosa%2BVarazze" alt="Linked routes" />
+        </div>
+      </div>
+      <ul class="checklist" data-section="pe">
+        <li><label><input type="checkbox" data-item="pe" />Completed today</label></li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <span class="tag">1–2x/week</span>
+      <h2>5. Forearm & Core Support (No Gear)</h2>
+      <div class="card-controls">
+        <button class="timer-btn" data-timer="support" aria-label="Start timer for support">▶</button>
+        <span class="timer-display" data-display="support">00:00</span>
+      </div>
+      <div class="card-body">
+        <ul>
+          <li><strong>Forearms:</strong> towel/edge hangs 6–10s on / 6–10s off x 6–8 · wrist flexion/extension 2 x 15</li>
+          <li><strong>Core:</strong> hollow body 3 x 30–45s · side plank w/ leg raise 2 x 20–30s · dead bugs 2 x 10/side</li>
+        </ul>
+        <div class="images">
+          <img src="https://hips.hearstapps.com/hmg-prod/images/atx-1639069562.png?crop=0.572xw%3A1.00xh%3B0.245xw%2C0&resize=1200%3A%2A" alt="Hangs" />
+          <img src="https://hips.hearstapps.com/hmg-prod/images/2021-bicycling-weekendworkouts-ep11-sideplankvariations-jc-v01-index-1615478915.jpg" alt="Side plank" />
+          <img src="https://www.grxstatic.com/4f3rgqwzdznj/4c34TjEWTEnOQrlLXNciwH/72929c22e24276aefbf764ec32daa9d8/woman_dead_hang_exercise_1289415787.jpg?fm=webp&q=99&w=3840" alt="Dead hang" />
+        </div>
+      </div>
+      <ul class="checklist" data-section="support">
+        <li><label><input type="checkbox" data-item="support" />Completed today</label></li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <span class="tag">Weekly structure</span>
+      <h2>6. Weekly Structure</h2>
+      <ul>
+        <li>Daily: mobility</li>
+        <li>2–3x/week: ARC endurance</li>
+        <li>2x/week: power‑endurance</li>
+        <li>1–2x/week: forearm + core</li>
+        <li>1 full rest day or active recovery only</li>
+      </ul>
+      <p class="notice">Flexibility comes from consistency. Endurance comes from staying relaxed under load.</p>
+    </section>
+
+    <div class="btns">
+      <button id="resetToday">Reset today</button>
+      <button id="clearAll">Clear all history</button>
+    </div>
+    <div class="footer">Boring works. Show up.</div>
+  </main>
+
+  <script>
+    const today = new Date();
+    const dateKey = today.toISOString().slice(0, 10);
+    const dateText = today.toLocaleDateString(undefined, {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const quotes = [
+      { text: "Start before you’re ready. Readiness is a delay tactic.", author: "" },
+      { text: "Ten minutes beats zero. Zero beats nothing except your ego.", author: "" },
+      { text: "The session that feels pointless is the one that counts.", author: "" },
+      { text: "You don’t rise to motivation. You sink to your systems.", author: "" },
+      { text: "Miss intensity, not days.", author: "" },
+      { text: "Consistency is boredom executed well.", author: "" },
+      { text: "The urge to skip is the signal.", author: "" },
+      { text: "If it feels optional, it isn’t.", author: "" },
+      { text: "Discomfort is the entry fee, not the goal.", author: "" },
+      { text: "I train because this is what climbers do.", author: "" },
+      { text: "This is maintenance, not self-improvement.", author: "" },
+      { text: "I don’t negotiate with the version of me that wants comfort.", author: "" },
+      { text: "Future strength is built on unremarkable days.", author: "" },
+      { text: "Nothing dramatic happens today. That’s the point.", author: "" },
+      { text: "The body remembers what the mind avoids.", author: "" },
+      { text: "Start small. Start now. Adjust later.", author: "" },
+      { text: "Do the minimum. Let momentum handle the rest.", author: "" },
+      { text: "One rep is infinitely more than thinking about reps.", author: "" },
+    ];
+
+    function pickQuote() {
+      let seed = 0;
+      for (let i = 0; i < dateKey.length; i += 1) seed += dateKey.charCodeAt(i);
+      const q = quotes[seed % quotes.length];
+      const text = document.getElementById("quoteText");
+      const author = document.getElementById("quoteAuthor");
+      text.textContent = q.text;
+      author.textContent = q.author ? `— ${q.author}` : "";
+    }
+
+    const dailyKey = (item, day = dateKey) => `climb-routine:${item}:${day}`;
+    const xpKey = (day = dateKey) => `climb-routine:xp:${day}`;
+    const challengeKey = (week) => `climb-routine:challenge:${week}`;
+    const levels = [20, 45, 75, 110];
+    const challenges = [
+      "ARC only. Zero power.",
+      "Mobility twice, no endurance.",
+      "Silent session. No music.",
+      "Left side priority.",
+      "Slow feet. Perfect form only.",
+      "No chalk until you feel pump.",
+      "Long rests, perfect execution.",
+    ];
+
+    pickQuote();
+    document.getElementById("today").textContent = dateText;
+
+    const exerciseInputs = document.querySelectorAll("input[data-item]");
+    const recoveryDay = document.getElementById("recoveryDay");
+    const skipToken = document.getElementById("skipToken");
+
+    function getWeekStart(d) {
+      const date = new Date(d);
+      const day = date.getDay();
+      const diff = (day + 6) % 7;
+      date.setDate(date.getDate() - diff);
+      return date.toISOString().slice(0, 10);
+    }
+
+    function addDays(d, amount) {
+      const date = new Date(d);
+      date.setDate(date.getDate() + amount);
+      return date.toISOString().slice(0, 10);
+    }
+
+    function isChecked(item, day = dateKey) {
+      return localStorage.getItem(dailyKey(item, day)) === "1";
+    }
+
+    function setChecked(item, value, day = dateKey) {
+      localStorage.setItem(dailyKey(item, day), value ? "1" : "0");
+    }
+
+    exerciseInputs.forEach((input) => {
+      const item = input.dataset.item;
+      const saved = localStorage.getItem(dailyKey(item));
+      if (saved === "1") input.checked = true;
+      input.addEventListener("change", () => {
+        setChecked(item, input.checked);
+        if (input.checked) {
+          stopTimer(item);
+          completeSound.currentTime = 0;
+          completeSound.play();
+        }
+        updateSystem();
+      });
+    });
+
+    const setRecoveryUI = (active) => {
+      recoveryDay.classList.toggle("active", active);
+      recoveryDay.setAttribute("aria-pressed", active ? "true" : "false");
+    };
+
+    setRecoveryUI(isChecked("recovery"));
+    recoveryDay.addEventListener("click", () => {
+      const next = !isChecked("recovery");
+      setChecked("recovery", next);
+      setRecoveryUI(next);
+      if (next) {
+        ["arc", "pe", "support", "flex"].forEach((item) => {
+          const input = document.querySelector(`input[data-item="${item}"]`);
+          if (input) {
+            input.checked = false;
+            setChecked(item, false);
+          }
+        });
+      }
+      updateSystem();
+    });
+
+    const setSkipUI = (active, disabled, statusText) => {
+      skipToken.classList.toggle("active", active);
+      skipToken.setAttribute("aria-pressed", active ? "true" : "false");
+      skipToken.toggleAttribute("disabled", disabled);
+      document.getElementById("skipStatus").textContent = statusText;
+    };
+
+    setSkipUI(isChecked("skip"), false, "1 / week");
+    skipToken.addEventListener("click", () => {
+      if (skipToken.hasAttribute("disabled")) return;
+      const next = !isChecked("skip");
+      setChecked("skip", next);
+      setSkipUI(next, false, "1 / week");
+      updateSystem();
+    });
+
+
+    function updateSystem() {
+      updateStreak();
+      updateMinimumBonus();
+      updateRecoveryLock();
+      updateXpLevel();
+      updateChallenge();
+      updateCollapse();
+    }
+
+    function updateMinimumBonus() {
+      const recoveryActive = isChecked("recovery");
+      const minimumDone = isChecked("mobility");
+      const bonusDone = ["arc", "pe", "support"].filter((item) => isChecked(item)).length;
+      document.getElementById("minimumStatus").textContent = recoveryActive ? "🌿" : (minimumDone ? "✓" : "–");
+      document.getElementById("bonusStatus").textContent = recoveryActive ? "—" : `${bonusDone}`;
+      const status = recoveryActive ? "Recovery" : (minimumDone ? "Complete" : "Pending");
+      document.getElementById("streak").textContent = `• Minimum: ${status}`;
+    }
+
+    function updateStreak() {
+      let streak = 0;
+      const maxDays = 3650;
+      let cursor = new Date(today);
+      
+      // If today is not done yet, start counting from yesterday to preserve the streak display
+      const todayDone = isChecked("mobility", dateKey) || isChecked("skip", dateKey);
+      if (!todayDone) {
+        cursor.setDate(cursor.getDate() - 1);
+      }
+
+      for (let i = 0; i < maxDays; i += 1) {
+        const key = cursor.toISOString().slice(0, 10);
+        if (isChecked("mobility", key) || isChecked("skip", key)) {
+          streak += 1;
+        } else {
+          break;
+        }
+        cursor.setDate(cursor.getDate() - 1);
+      }
+      document.getElementById("minimumStreak").textContent = `${streak} day${streak === 1 ? "" : "s"}`;
+
+      const weekStart = getWeekStart(today);
+      let tokenUsedDate = null;
+      for (let i = 0; i < 7; i += 1) {
+        const key = addDays(weekStart, i);
+        if (isChecked("skip", key)) {
+          tokenUsedDate = key;
+          break;
+        }
+      }
+
+      const minimumDone = isChecked("mobility");
+      const skipStatus = document.getElementById("skipStatus");
+      if (minimumDone) {
+        setChecked("skip", false);
+        setSkipUI(false, true, "Locked");
+      } else if (tokenUsedDate && tokenUsedDate !== dateKey) {
+        setSkipUI(false, true, "Used");
+      } else {
+        setSkipUI(isChecked("skip"), false, "1 / week");
+      }
+    }
+
+    function updateRecoveryLock() {
+      ["arc", "pe", "support", "flex"].forEach((item) => {
+        const input = document.querySelector(`input[data-item="${item}"]`);
+        if (!input) return;
+        input.disabled = isChecked("recovery");
+      });
+    }
+
+    function updateXpLevel() {
+      let todayXp = 0;
+      if (isChecked("recovery")) {
+        todayXp = 1;
+      } else {
+        if (isChecked("mobility")) todayXp += 1;
+        if (isChecked("arc")) todayXp += 2;
+        if (isChecked("pe")) todayXp += 3;
+        if (isChecked("support")) todayXp += 1;
+        if (isChecked("flex")) todayXp += 1;
+      }
+      localStorage.setItem(xpKey(), String(todayXp));
+
+      const totalXp = Object.keys(localStorage)
+        .filter((k) => k.startsWith("climb-routine:xp:"))
+        .reduce((sum, k) => sum + Number(localStorage.getItem(k) || "0"), 0);
+
+      let level = 1;
+      let next = levels[0];
+      let progress = totalXp / next;
+      if (totalXp >= levels[3]) {
+        level = 4;
+        next = levels[3];
+        progress = 1;
+      } else if (totalXp >= levels[2]) {
+        level = 4;
+        next = levels[3];
+        progress = (totalXp - levels[2]) / (levels[3] - levels[2]);
+      } else if (totalXp >= levels[1]) {
+        level = 3;
+        next = levels[2];
+        progress = (totalXp - levels[1]) / (levels[2] - levels[1]);
+      } else if (totalXp >= levels[0]) {
+        level = 2;
+        next = levels[1];
+        progress = (totalXp - levels[0]) / (levels[1] - levels[0]);
+      }
+
+      document.getElementById("levelProgress").style.width = `${Math.min(progress * 100, 100)}%`;
+      const cap = totalXp >= levels[3] ? levels[3] : next;
+      document.getElementById("levelLabel").textContent = `${Math.min(totalXp, cap)} / ${cap} XP · L${level}`;
+    }
+
+
+    function updateChallenge() {
+      const weekStart = getWeekStart(today);
+      let challenge = localStorage.getItem(challengeKey(weekStart));
+      if (!challenge) {
+        challenge = challenges[Math.floor(Math.random() * challenges.length)];
+        localStorage.setItem(challengeKey(weekStart), challenge);
+      }
+      document.getElementById("weeklyChallenge").textContent = challenge;
+    }
+
+
+    function updateCollapse() {
+      exerciseInputs.forEach((input) => {
+        const card = input.closest(".card");
+        if (!card) return;
+        card.classList.toggle("collapsed", input.checked);
+      });
+    }
+
+    const clickSound = new Audio("immersive_click_1s.wav");
+    const toneSound = new Audio("reward_tone_1min.wav");
+    const completeSound = new Audio("complete_reward_sound.wav");
+
+    const timers = new Map();
+    let activeTimerId = null;
+
+    function formatTime(ms) {
+      const total = Math.floor(ms / 1000);
+      const m = String(Math.floor(total / 60)).padStart(2, "0");
+      const s = String(total % 60).padStart(2, "0");
+      return `${m}:${s}`;
+    }
+
+    function stopTimer(id) {
+      const timer = timers.get(id);
+      if (!timer) return;
+      clearInterval(timer.interval);
+      timer.interval = null;
+      timer.running = false;
+      timer.button.classList.remove("active");
+      timer.button.textContent = "▶";
+      activeTimerId = null;
+    }
+
+    function startTimer(id) {
+      const timer = timers.get(id);
+      if (!timer) return;
+      if (activeTimerId && activeTimerId !== id) stopTimer(activeTimerId);
+      timer.start = Date.now() - timer.elapsed;
+      timer.running = true;
+      timer.button.classList.add("active");
+      timer.button.textContent = "⏸";
+      activeTimerId = id;
+
+      timer.interval = setInterval(() => {
+        timer.elapsed = Date.now() - timer.start;
+        timer.display.textContent = formatTime(timer.elapsed);
+
+        const seconds = Math.floor(timer.elapsed / 1000);
+        if (seconds === timer.lastSecond) return;
+        timer.lastSecond = seconds;
+        if (seconds > 0 && seconds % 60 === 0) {
+          toneSound.currentTime = 0;
+          toneSound.play();
+        } else if (seconds > 0 && seconds % 30 === 0) {
+          clickSound.currentTime = 0;
+          clickSound.play();
+        }
+      }, 250);
+    }
+
+    document.querySelectorAll(".timer-btn").forEach((button) => {
+      const id = button.dataset.timer;
+      const display = document.querySelector(`.timer-display[data-display="${id}"]`);
+      timers.set(id, {
+        button,
+        display,
+        elapsed: 0,
+        start: 0,
+        interval: null,
+        running: false,
+        lastSecond: -1,
+      });
+      button.addEventListener("click", () => {
+        const timer = timers.get(id);
+        if (!timer) return;
+        if (timer.running) {
+          stopTimer(id);
+        } else {
+          startTimer(id);
+        }
+      });
+    });
+
+    updateSystem();
+
+    document.getElementById("resetToday").addEventListener("click", () => {
+      exerciseInputs.forEach((input) => {
+        input.checked = false;
+        setChecked(input.dataset.item, false);
+      });
+      setChecked("recovery", false);
+      setRecoveryUI(false);
+      setChecked("skip", false);
+      setSkipUI(false, false, "1 / week");
+      localStorage.setItem(xpKey(), "0");
+      timers.forEach((_, id) => stopTimer(id));
+      updateSystem();
+    });
+
+    document.getElementById("clearAll").addEventListener("click", () => {
+      if (!confirm("Clear all saved routine history?")) return;
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("climb-routine:"))
+        .forEach((k) => localStorage.removeItem(k));
+      exerciseInputs.forEach((input) => { input.checked = false; });
+      setChecked("recovery", false);
+      setRecoveryUI(false);
+      setSkipUI(false, false, "1 / week");
+      timers.forEach((_, id) => stopTimer(id));
+      updateSystem();
+    });
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js");
+      });
+    }
+  </script>
+</body>
+</html>
