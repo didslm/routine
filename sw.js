@@ -1,13 +1,13 @@
 const CACHE_NAME = "climb-routine-v1";
 const ASSETS = [
-  "./",
-  "./index.html",
-  "./manifest.webmanifest",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./immersive_click_1s.wav",
-  "./reward_tone_1min.wav",
-  "./complete_reward_sound.wav"
+  "/",
+  "/index.html",
+  "/manifest.webmanifest",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/immersive_click_1s.wav",
+  "/reward_tone_1min.wav",
+  "/complete_reward_sound.wav"
 ];
 
 self.addEventListener("install", (event) => {
@@ -35,7 +35,7 @@ self.addEventListener("fetch", (event) => {
         return response;
       }).catch(() => {
         if (event.request.mode === "navigate") {
-          return caches.match("./index.html");
+          return caches.match("/index.html");
         }
       });
     })
