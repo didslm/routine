@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Climbing Routine — Daily Page</title>
   <meta name="theme-color" content="#0f1418" />
-  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -637,6 +637,7 @@
     </section>
 
     <div class="btns">
+      <button id="installApp" style="display: none;">📲 Install App</button>
       <button id="resetToday">Reset today</button>
       <button id="clearAll">Clear all history</button>
     </div>
@@ -1024,6 +1025,66 @@
         navigator.serviceWorker.register("./sw.js");
       });
     }
+
+    // --- Audio System ---
+    const audio = {
+      click: new Audio("./immersive_click_1s.wav"),
+      reward: new Audio("./complete_reward_sound.wav"),
+      tone: new Audio("./reward_tone_1min.wav")
+    };
+    
+    // Preload sounds
+    Object.values(audio).forEach(s => { s.volume = 0.4; s.load(); });
+
+    function playSound(name) {
+      const sound = audio[name];
+      if (sound) {
+        sound.currentTime = 0;
+        sound.play().catch(() => {}); // Ignore interaction errors
+      }
+    }
+
+    // --- PWA Install ---
+    let deferredPrompt;
+    const installBtn = document.getElementById("installApp");
+
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.style.display = "inline-block";
+    });
+
+    installBtn.addEventListener("click", async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === "accepted") {
+        installBtn.style.display = "none";
+      }
+      deferredPrompt = null;
+    });
+
+    // --- Integration ---
+    // Hook sound into the existing input listener
+    exerciseInputs.forEach((input) => {
+      // Remove old listener to avoid double binding if we were re-running, 
+      // but since this is top-level script, we just add a specific sound listener
+      // We'll rely on the existing 'change' event we added earlier, but we need to inject sound.
+      // Instead of modifying the loop above, we'll just add a new listener here.
+      input.addEventListener("change", () => {
+        playSound("click");
+        if (input.dataset.item === "mobility" && input.checked) {
+          setTimeout(() => playSound("reward"), 300);
+        }
+      });
+    });
+
+    // Hook sound into buttons
+    recoveryDay.addEventListener("click", () => playSound("click"));
+    skipToken.addEventListener("click", () => {
+       if (!skipToken.hasAttribute("disabled")) playSound("click");
+    });
+
   </script>
 </body>
 </html>
