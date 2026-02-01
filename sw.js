@@ -1,4 +1,4 @@
-const CACHE_NAME = "climb-routine-v3";
+const CACHE_NAME = "climb-routine-v4";
 const ASSETS = [
   "/",
   "/index.html",
@@ -7,7 +7,8 @@ const ASSETS = [
   "/icons/icon-512.png",
   "/immersive_click_1s.wav",
   "/reward_tone_1min.wav",
-  "/complete_reward_sound.wav"
+  "/complete_reward_sound.wav",
+  "/routine-mobile-arm64-v1.0.1.apk"
 ];
 
 self.addEventListener("install", (event) => {
