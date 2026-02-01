@@ -136,6 +136,15 @@
       background: rgba(255,255,255,0.04);
       min-width: 62px;
       text-align: center;
+      transition: transform 180ms ease, color 180ms ease, border-color 180ms ease, background 180ms ease;
+      transform-origin: center;
+    }
+
+    .timer-display.active {
+      transform: scale(1.08);
+      color: var(--ink);
+      border-color: rgba(123,217,255,0.45);
+      background: rgba(123,217,255,0.12);
     }
 
     .card h2 {
@@ -356,12 +365,16 @@
     .toggle-pill.active {
       border-color: rgba(177,255,158,0.5);
       background: rgba(177,255,158,0.12);
-      color: #0c1a14;
+      color: var(--ink);
+      box-shadow: 0 0 18px rgba(177,255,158,0.18);
     }
 
     .toggle-pill.active .dot {
-      background: #0c1a14;
-      box-shadow: 0 0 0 2px rgba(12,26,20,0.25);
+      background: var(--accent-2);
+      box-shadow:
+        0 0 0 2px rgba(12,26,20,0.25),
+        0 0 12px rgba(177,255,158,0.45);
+      animation: recovery-pulse 2.2s ease-in-out infinite;
     }
 
     .rule-strip {
@@ -452,6 +465,15 @@
       from { transform: translateY(8px); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
     }
+
+    @keyframes recovery-pulse {
+      0%, 100% { box-shadow:
+        0 0 0 2px rgba(12,26,20,0.25),
+        0 0 10px rgba(177,255,158,0.35); }
+      50% { box-shadow:
+        0 0 0 2px rgba(12,26,20,0.25),
+        0 0 18px rgba(177,255,158,0.65); }
+    }
   </style>
 </head>
 <body>
@@ -476,7 +498,7 @@
         </div>
         <div class="chip-row action-row">
           <button id="recoveryDay" class="toggle-pill" type="button" aria-pressed="false">
-            <span class="dot"></span> 🌿 Recovery
+            <span class="dot"></span> <span id="recoveryLabel">🌿 Recovery</span>
           </button>
           <button id="skipToken" class="toggle-pill" type="button" aria-pressed="false">
             <span class="dot"></span> 🎟️ Skip <span class="pill-note" id="skipStatus">1 / week</span>
@@ -640,6 +662,9 @@
 
     <div class="btns">
       <button id="installApp" style="display: none;">📲 Install App</button>
+      <a href="/routine-mobile-arm64.apk" download style="text-decoration: none;">
+        <button id="downloadApk">🤖 Download APK</button>
+      </a>
       <button id="resetToday">Reset today</button>
       <button id="clearAll">Clear all history</button>
     </div>
@@ -748,6 +773,8 @@
     const setRecoveryUI = (active) => {
       recoveryDay.classList.toggle("active", active);
       recoveryDay.setAttribute("aria-pressed", active ? "true" : "false");
+      const label = document.getElementById("recoveryLabel");
+      if (label) label.textContent = active ? "Recovering..." : "🌿 Recovery";
     };
 
     setRecoveryUI(isChecked("recovery"));
@@ -940,6 +967,7 @@
       timer.running = false;
       timer.button.classList.remove("active");
       timer.button.textContent = "▶";
+      timer.display.classList.remove("active");
       activeTimerId = null;
     }
 
@@ -951,6 +979,7 @@
       timer.running = true;
       timer.button.classList.add("active");
       timer.button.textContent = "⏸";
+      timer.display.classList.add("active");
       activeTimerId = id;
 
       timer.interval = setInterval(() => {

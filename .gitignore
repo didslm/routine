@@ -1,1 +1,19 @@
 .DS_Store
+node_modules/
+.expo/
+dist/
+build/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+mobile/node_modules/
+mobile/.expo/
+mobile/android/app/build/
+mobile/android/build/
+mobile/android/.gradle/
+mobile/ios/Pods/
+mobile/ios/build/
+routine-mobile-debug.apk
+routine-mobile-release.apk
+# We keep routine-mobile-arm64.apk as it is the distributable file

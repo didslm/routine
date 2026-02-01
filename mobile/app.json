@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Climbing Routine",
+    "slug": "climbing-routine",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icons/finalo.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/icons/finalo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f1418"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.example.climbingroutine",
+      "permissions": [
+        "FOREGROUND_SERVICE",
+        "WAKE_LOCK",
+        "POST_NOTIFICATIONS"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icons/finalo.png",
+        "backgroundColor": "#0f1418"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.example.climbingroutine"
+    }
+  }
+}
