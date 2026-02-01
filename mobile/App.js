@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -119,42 +119,41 @@ const quotes = [
   { text: "One rep is infinitely more than thinking about reps.", author: "" },
 ];
 
-const today = new Date();
-const dateKey = today.toISOString().slice(0, 10);
-const dateText = today.toLocaleDateString(undefined, {
-  weekday: "long",
-  year: "numeric",
-  month: "long",
-  day: "numeric",
-});
-
-const pickQuote = () => {
-  let seed = 0;
-  for (let i = 0; i < dateKey.length; i += 1) seed += dateKey.charCodeAt(i);
-  return quotes[seed % quotes.length];
+const pad2 = (value) => String(value).padStart(2, "0");
+const formatLocalDate = (date) =>
+  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+const parseLocalDate = (value) => {
+  if (value instanceof Date) return new Date(value);
+  if (typeof value === "string") {
+    const [year, month, day] = value.split("-").map((part) => Number(part));
+    if (!Number.isNaN(year) && !Number.isNaN(month) && !Number.isNaN(day)) {
+      return new Date(year, month - 1, day);
+    }
+  }
+  return new Date(value);
 };
 
-const dailyKey = (item, day = dateKey) => `climb-routine:${item}:${day}`;
-const xpKey = (day = dateKey) => `climb-routine:xp:${day}`;
+const pickQuote = (dayKey) => {
+  let seed = 0;
+  for (let i = 0; i < dayKey.length; i += 1) seed += dayKey.charCodeAt(i);
+  return quotes[seed % quotes.length];
+};
 const challengeKey = (week) => `climb-routine:challenge:${week}`;
-const doneAtKey = (day = dateKey) => `climb-routine:doneAt:${day}`;
-const noteKey = (group, item, day = dateKey) =>
-  `climb-routine:note:${group}:${item}:${day}`;
 const notifyIdKey = "climb-routine:notifyId";
 const notifyTimeKey = "climb-routine:notifyTime";
 
 const getWeekStart = (d) => {
-  const date = new Date(d);
+  const date = parseLocalDate(d);
   const day = date.getDay();
   const diff = (day + 6) % 7;
   date.setDate(date.getDate() - diff);
-  return date.toISOString().slice(0, 10);
+  return formatLocalDate(date);
 };
 
 const addDays = (d, amount) => {
-  const date = new Date(d);
+  const date = parseLocalDate(d);
   date.setDate(date.getDate() + amount);
-  return date.toISOString().slice(0, 10);
+  return formatLocalDate(date);
 };
 
 const formatTime = (ms) => {
@@ -176,6 +175,19 @@ export default function App() {
     [colors, colorScheme]
   );
   const { width } = useWindowDimensions();
+  const [today, setToday] = useState(() => new Date());
+  const [dateKey, setDateKey] = useState(() => formatLocalDate(new Date()));
+  const dateText = useMemo(
+    () =>
+      today.toLocaleDateString(undefined, {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+    [today]
+  );
+  const quote = useMemo(() => pickQuote(dateKey), [dateKey]);
   const [storageMap, setStorageMap] = useState({});
   const [weeklyChallenge, setWeeklyChallenge] = useState("—");
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -183,6 +195,27 @@ export default function App() {
   const TimerService = Platform.OS === "android" ? NativeModules.TimerService : null;
   const timerMode = TIMER_MODES[timerModeIndex]?.id ?? "free";
   const timerModeLabel = TIMER_MODES[timerModeIndex]?.label ?? "Free";
+
+  const dailyKey = useCallback(
+    (item, day = dateKey) => `climb-routine:${item}:${day}`,
+    [dateKey]
+  );
+  const xpKey = useCallback((day = dateKey) => `climb-routine:xp:${day}`, [dateKey]);
+  const doneAtKey = useCallback(
+    (day = dateKey) => `climb-routine:doneAt:${day}`,
+    [dateKey]
+  );
+  const noteKey = useCallback(
+    (group, item, day = dateKey) => `climb-routine:note:${group}:${item}:${day}`,
+    [dateKey]
+  );
+
+  const refreshDate = useCallback(() => {
+    const now = new Date();
+    const nextKey = formatLocalDate(now);
+    setToday(now);
+    setDateKey((prev) => (prev === nextKey ? prev : nextKey));
+  }, []);
 
   const [timerElapsed, setTimerElapsed] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
@@ -211,6 +244,14 @@ export default function App() {
       }),
     });
   }, []);
+
+  useEffect(() => {
+    const handleAppState = (nextState) => {
+      if (nextState === "active") refreshDate();
+    };
+    const subscription = AppState.addEventListener("change", handleAppState);
+    return () => subscription.remove();
+  }, [refreshDate]);
 
   useEffect(() => {
     let mounted = true;
@@ -328,7 +369,7 @@ export default function App() {
     const result = [];
     const cursor = new Date(today);
     for (let i = 0; i < daysBack; i += 1) {
-      const key = cursor.toISOString().slice(0, 10);
+      const key = formatLocalDate(cursor);
       const stored = storageMap[doneAtKey(key)];
       if (stored) {
         const minutes = Number(stored);
@@ -534,7 +575,7 @@ export default function App() {
     AsyncStorage.setItem(key, next).then(() => {
       setStorageMap((prev) => ({ ...prev, [key]: next }));
     });
-  }, [storageMap]);
+  }, [storageMap, dateKey, today, dailyKey]);
 
   useEffect(() => {
     let mounted = true;
@@ -640,7 +681,7 @@ export default function App() {
     if (!todayDone) cursor.setDate(cursor.getDate() - 1);
 
     for (let i = 0; i < maxDays; i += 1) {
-      const key = cursor.toISOString().slice(0, 10);
+      const key = formatLocalDate(cursor);
       const done =
         storageMap[dailyKey("mobility", key)] === "1" ||
         storageMap[dailyKey("recovery", key)] === "1" ||
@@ -721,7 +762,7 @@ export default function App() {
       return { active: false, disabled: true, label: "Used" };
     }
     return { active: isChecked("skip"), disabled: false, label: "1 / week" };
-  }, [storageMap, minimumDone]);
+  }, [storageMap, minimumDone, today, dateKey, dailyKey]);
 
   const rewardItems = new Set(["mobility", "flex", "arc", "pe", "support"]);
 
@@ -813,7 +854,6 @@ export default function App() {
     ]);
   };
 
-  const quote = pickQuote();
   const last7Sessions = useMemo(() => {
     const dates = new Set();
     Object.entries(storageMap).forEach(([key, value]) => {
@@ -1158,30 +1198,32 @@ export default function App() {
               onToggle={() => handleToggle("mobility")}
             />
           </View>
-          <View style={styles.cardBody}>
-            <Text style={styles.paragraph}>Open hips, shoulders, spine, and ankles. Breathe slow and nasal.</Text>
-            <Text style={styles.listItem}>
-              • Hips{"\n"}
-              {"  "}– Deep squat hold: 2–3 min total{"\n"}
-              {"  "}– Frog stretch: 2×60–90s{"\n"}
-              {"  "}– Cossack squats: 2×8/side
-            </Text>
-            <Text style={styles.listItem}>
-              • Spine{"\n"}
-              {"  "}– Thoracic rotations: 2×10/side{"\n"}
-              {"  "}– Cat–cow: 2×8
-            </Text>
-            <Text style={styles.listItem}>
-              • Shoulders{"\n"}
-              {"  "}– Internal + external rotation stretch: 2×45s{"\n"}
-              {"  "}– Overhead flexion stretch: 2×45s
-            </Text>
-            <Text style={styles.listItem}>
-              • Ankles{"\n"}
-              {"  "}– Knee-to-wall dorsiflexion: 2×10/side{"\n"}
-              {"  "}– Calf stretch bent + straight: 2×45s
-            </Text>
-          </View>
+          {!isChecked("mobility") && (
+            <View style={styles.cardBody}>
+              <Text style={styles.paragraph}>Open hips, shoulders, spine, and ankles. Breathe slow and nasal.</Text>
+              <Text style={styles.listItem}>
+                • Hips{"\n"}
+                {"  "}– Deep squat hold: 2–3 min total{"\n"}
+                {"  "}– Frog stretch: 2×60–90s{"\n"}
+                {"  "}– Cossack squats: 2×8/side
+              </Text>
+              <Text style={styles.listItem}>
+                • Spine{"\n"}
+                {"  "}– Thoracic rotations: 2×10/side{"\n"}
+                {"  "}– Cat–cow: 2×8
+              </Text>
+              <Text style={styles.listItem}>
+                • Shoulders{"\n"}
+                {"  "}– Internal + external rotation stretch: 2×45s{"\n"}
+                {"  "}– Overhead flexion stretch: 2×45s
+              </Text>
+              <Text style={styles.listItem}>
+                • Ankles{"\n"}
+                {"  "}– Knee-to-wall dorsiflexion: 2×10/side{"\n"}
+                {"  "}– Calf stretch bent + straight: 2×45s
+              </Text>
+            </View>
+          )}
         </SectionCard>
 
         <SectionCard
@@ -1202,11 +1244,13 @@ export default function App() {
               onToggle={() => handleToggle("flex")}
             />
           </View>
-          <View style={styles.cardBody}>
-            <Text style={styles.listItem}>• High-step holds on the wall — 3×20–30s/side</Text>
-            <Text style={styles.listItem}>• Drop-knee stretch — 3×20–30s/side</Text>
-            <Text style={styles.listItem}>• Lock-off shoulder stretch — 2×30s/side</Text>
-          </View>
+          {!isChecked("flex") && (
+            <View style={styles.cardBody}>
+              <Text style={styles.listItem}>• High-step holds on the wall — 3×20–30s/side</Text>
+              <Text style={styles.listItem}>• Drop-knee stretch — 3×20–30s/side</Text>
+              <Text style={styles.listItem}>• Lock-off shoulder stretch — 2×30s/side</Text>
+            </View>
+          )}
         </SectionCard>
 
         <SectionCard
@@ -1227,11 +1271,13 @@ export default function App() {
               onToggle={() => handleToggle("arc")}
             />
           </View>
-          <View style={styles.cardBody}>
-            <Text style={styles.paragraph}>Easy intensity; you can hold a conversation. Focus on footwork and a relaxed grip.</Text>
-            <Text style={styles.listItem}>• 25–45 minutes continuous movement</Text>
-            <Text style={styles.listItem}>• If forearms burn, lower the intensity</Text>
-          </View>
+          {!isChecked("arc") && (
+            <View style={styles.cardBody}>
+              <Text style={styles.paragraph}>Easy intensity; you can hold a conversation. Focus on footwork and a relaxed grip.</Text>
+              <Text style={styles.listItem}>• 25–45 minutes continuous movement</Text>
+              <Text style={styles.listItem}>• If forearms burn, lower the intensity</Text>
+            </View>
+          )}
         </SectionCard>
 
         <SectionCard
@@ -1252,21 +1298,23 @@ export default function App() {
               onToggle={() => handleToggle("pe")}
             />
           </View>
-          <View style={styles.cardBody}>
-            <Text style={styles.listItem}>
-              • 4×4s{"\n"}
-              {"  "}– 4 boulders @ ~80%{"\n"}
-              {"  "}– Climb back-to-back{"\n"}
-              {"  "}– Rest 2–3 min{"\n"}
-              {"  "}– Repeat 4 rounds
-            </Text>
-            <Text style={styles.listItem}>
-              • Linked routes{"\n"}
-              {"  "}– 2 medium routes with no rest{"\n"}
-              {"  "}– Rest 3 min{"\n"}
-              {"  "}– 4–6 sets
-            </Text>
-          </View>
+          {!isChecked("pe") && (
+            <View style={styles.cardBody}>
+              <Text style={styles.listItem}>
+                • 4×4s{"\n"}
+                {"  "}– 4 boulders @ ~80%{"\n"}
+                {"  "}– Climb back-to-back{"\n"}
+                {"  "}– Rest 2–3 min{"\n"}
+                {"  "}– Repeat 4 rounds
+              </Text>
+              <Text style={styles.listItem}>
+                • Linked routes{"\n"}
+                {"  "}– 2 medium routes with no rest{"\n"}
+                {"  "}– Rest 3 min{"\n"}
+                {"  "}– 4–6 sets
+              </Text>
+            </View>
+          )}
         </SectionCard>
 
         <SectionCard
@@ -1287,19 +1335,21 @@ export default function App() {
               onToggle={() => handleToggle("support")}
             />
           </View>
-          <View style={styles.cardBody}>
-            <Text style={styles.listItem}>
-              • Forearms{"\n"}
-              {"  "}– Towel or edge hangs: 6–10s on / 6–10s off ×6–8{"\n"}
-              {"  "}– Wrist flexion/extension: 2×15
-            </Text>
-            <Text style={styles.listItem}>
-              • Core{"\n"}
-              {"  "}– Hollow body: 3×30–45s{"\n"}
-              {"  "}– Side plank with leg raise: 2×20–30s{"\n"}
-              {"  "}– Dead bugs: 2×10/side
-            </Text>
-          </View>
+          {!isChecked("support") && (
+            <View style={styles.cardBody}>
+              <Text style={styles.listItem}>
+                • Forearms{"\n"}
+                {"  "}– Towel or edge hangs: 6–10s on / 6–10s off ×6–8{"\n"}
+                {"  "}– Wrist flexion/extension: 2×15
+              </Text>
+              <Text style={styles.listItem}>
+                • Core{"\n"}
+                {"  "}– Hollow body: 3×30–45s{"\n"}
+                {"  "}– Side plank with leg raise: 2×20–30s{"\n"}
+                {"  "}– Dead bugs: 2×10/side
+              </Text>
+            </View>
+          )}
         </SectionCard>
 
         <SectionCard>
