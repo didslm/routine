@@ -1,4 +1,4 @@
-const CACHE_NAME = "climb-routine-v2";
+const CACHE_NAME = "climb-routine-v3";
 const ASSETS = [
   "/",
   "/index.html",
