@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   Platform,
   AppState,
@@ -14,6 +15,7 @@ import {
   useWindowDimensions,
   useColorScheme,
   Animated,
+  BackHandler,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
@@ -76,6 +78,13 @@ const challenges = [
   "Position ownership audit: re-test key positions.",
 ];
 
+const bodyChecks = [
+  { id: "fingers", label: "Fingers feel stiff", tags: ["crimp"] },
+  { id: "elbows", label: "Elbows feel tender", tags: ["pull"] },
+  { id: "shoulders", label: "Shoulders feel tight", tags: ["shoulder"] },
+  { id: "none", label: "Nothing notable", tags: [] },
+];
+
 const noteLimiters = [
   { id: "grip", label: "Grip / forearms" },
   { id: "mobility", label: "Hips / mobility" },
@@ -99,24 +108,27 @@ const TIMER_MODES = [
 ];
 
 const quotes = [
-  { text: "Start before you're ready. Readiness is a delay tactic.", author: "" },
-  { text: "Ten minutes beats zero. Zero beats nothing except your ego.", author: "" },
-  { text: "The session that feels pointless is the one that counts.", author: "" },
-  { text: "You don't rise to motivation. You sink to your systems.", author: "" },
-  { text: "Miss intensity, not days.", author: "" },
-  { text: "Consistency is boredom executed well.", author: "" },
-  { text: "The urge to skip is the signal.", author: "" },
-  { text: "If it feels optional, it isn't.", author: "" },
-  { text: "Discomfort is the entry fee, not the goal.", author: "" },
-  { text: "I train because this is what climbers do.", author: "" },
-  { text: "This is maintenance, not self-improvement.", author: "" },
-  { text: "I don't negotiate with the version of me that wants comfort.", author: "" },
-  { text: "Future strength is built on unremarkable days.", author: "" },
-  { text: "Nothing dramatic happens today. That's the point.", author: "" },
-  { text: "The body remembers what the mind avoids.", author: "" },
-  { text: "Start small. Start now. Adjust later.", author: "" },
-  { text: "Do the minimum. Let momentum handle the rest.", author: "" },
-  { text: "One rep is infinitely more than thinking about reps.", author: "" },
+  { text: "Ten minutes beats zero. Zero beats nothing except your ego.", tags: ["anchor"] },
+  { text: "Nothing dramatic happens today. That's the point.", tags: ["anchor"] },
+  { text: "Discomfort is the entry fee, not the goal.", tags: ["anchor"] },
+  { text: "The session that feels pointless is the one that counts.", tags: ["neutral"] },
+  { text: "You don't rise to motivation. You sink to your systems.", tags: ["neutral"] },
+  { text: "Consistency is boredom executed well.", tags: ["neutral"] },
+  { text: "Future strength is built on unremarkable days.", tags: ["neutral"] },
+  { text: "Start small. Start now. Adjust later.", tags: ["neutral"] },
+  { text: "Do the minimum. Let momentum handle the rest.", tags: ["neutral"] },
+  { text: "One rep is infinitely more than thinking about reps.", tags: ["neutral"] },
+  { text: "This is maintenance, not self-improvement.", tags: ["neutral"] },
+  { text: "The body remembers what the mind avoids.", tags: ["neutral"] },
+  { text: "Start before you're ready. Readiness is a delay tactic.", tags: ["hard"] },
+  { text: "The urge to skip is the signal.", tags: ["hard"] },
+  { text: "If it feels optional, it isn't.", tags: ["hard"] },
+  { text: "Miss intensity, not days.", tags: ["hard"] },
+  { text: "I train because this is what climbers do.", tags: ["identity"] },
+  { text: "I don't negotiate with the version of me that wants comfort.", tags: ["identity"] },
+  { text: "Some weeks are for showing up, not proving anything.", tags: ["soft"] },
+  { text: "Rest is part of the plan, not a detour.", tags: ["soft"] },
+  { text: "You can restart without making it dramatic.", tags: ["soft"] },
 ];
 
 const pad2 = (value) => String(value).padStart(2, "0");
@@ -133,10 +145,11 @@ const parseLocalDate = (value) => {
   return new Date(value);
 };
 
-const pickQuote = (dayKey) => {
+const pickQuote = (seedKey, pool) => {
+  const list = pool.length ? pool : quotes;
   let seed = 0;
-  for (let i = 0; i < dayKey.length; i += 1) seed += dayKey.charCodeAt(i);
-  return quotes[seed % quotes.length];
+  for (let i = 0; i < seedKey.length; i += 1) seed += seedKey.charCodeAt(i);
+  return list[seed % list.length];
 };
 const challengeKey = (week) => `climb-routine:challenge:${week}`;
 const notifyIdKey = "climb-routine:notifyId";
@@ -187,8 +200,8 @@ export default function App() {
       }),
     [today]
   );
-  const quote = useMemo(() => pickQuote(dateKey), [dateKey]);
   const [storageMap, setStorageMap] = useState({});
+  const [storageReady, setStorageReady] = useState(false);
   const [weeklyChallenge, setWeeklyChallenge] = useState("—");
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [timerModeIndex, setTimerModeIndex] = useState(0);
@@ -201,6 +214,10 @@ export default function App() {
     [dateKey]
   );
   const xpKey = useCallback((day = dateKey) => `climb-routine:xp:${day}`, [dateKey]);
+  const bodyCheckKey = useCallback(
+    (day = dateKey) => `climb-routine:body-check:${day}`,
+    [dateKey]
+  );
   const doneAtKey = useCallback(
     (day = dateKey) => `climb-routine:doneAt:${day}`,
     [dateKey]
@@ -209,6 +226,9 @@ export default function App() {
     (group, item, day = dateKey) => `climb-routine:note:${group}:${item}:${day}`,
     [dateKey]
   );
+  const streakCareKey = "climb-routine:streak-care-note-seen";
+  const maintenanceKey = "climb-routine:maintenance-mode";
+  const commitmentKey = "climb-routine:commitment-accepted";
 
   const refreshDate = useCallback(() => {
     const now = new Date();
@@ -233,7 +253,13 @@ export default function App() {
   const soundsRef = useRef({});
   const streakScale = useRef(new Animated.Value(1)).current;
   const streakGlow = useRef(new Animated.Value(0)).current;
-  const lastStreak = useRef(null);
+  const [bodyCheckExpanded, setBodyCheckExpanded] = useState(true);
+  const [bodyCheckManualOpen, setBodyCheckManualOpen] = useState(false);
+  const maintenancePulse = useRef(new Animated.Value(0)).current;
+  const [showCommitment, setShowCommitment] = useState(false);
+  const [commitText, setCommitText] = useState("");
+  const commitFade = useRef(new Animated.Value(0)).current;
+  const commitScale = useRef(new Animated.Value(0.98)).current;
 
   useEffect(() => {
     Notifications.setNotificationHandler({
@@ -262,7 +288,10 @@ export default function App() {
       pairs.forEach(([key, value]) => {
         if (value != null) map[key] = value;
       });
-      if (mounted) setStorageMap(map);
+      if (mounted) {
+        setStorageMap(map);
+        setStorageReady(true);
+      }
     };
     load();
     return () => {
@@ -343,10 +372,112 @@ export default function App() {
   const isChecked = (item, day = dateKey) => getStored(dailyKey(item, day)) === "1";
   const isNoteChecked = (group, item, day = dateKey) =>
     getStored(noteKey(group, item, day)) === "1";
+  const bodyCheckValue = getStored(bodyCheckKey()) ?? "";
+  const bodyCheckLabel =
+    bodyChecks.find((opt) => opt.id === bodyCheckValue)?.label ?? "";
+  const bodySteer = useMemo(() => {
+    const match = bodyChecks.find((opt) => opt.id === bodyCheckValue);
+    return new Set(match ? match.tags : []);
+  }, [bodyCheckValue]);
+  const maintenanceMode = getStored(maintenanceKey) === "1";
+  const showStreakNote = !storageMap[streakCareKey];
+  const commitmentAccepted = storageMap[commitmentKey] === "1";
+  const commitReady = commitText === "I commit";
+
+  useEffect(() => {
+    setBodyCheckManualOpen(false);
+    setBodyCheckExpanded(!bodyCheckValue);
+  }, [dateKey]);
+
+  useEffect(() => {
+    if (!bodyCheckValue) {
+      setBodyCheckExpanded(true);
+      setBodyCheckManualOpen(false);
+      return;
+    }
+    if (!bodyCheckManualOpen) setBodyCheckExpanded(false);
+  }, [bodyCheckValue, bodyCheckManualOpen]);
+
+  useEffect(() => {
+    if (!showStreakNote) return;
+    AsyncStorage.setItem(streakCareKey, "1").then(() => {
+      setStorageMap((prev) => ({ ...prev, [streakCareKey]: "1" }));
+    });
+  }, [showStreakNote, streakCareKey]);
+
+  useEffect(() => {
+    if (!storageReady || commitmentAccepted) return;
+    const timer = setTimeout(() => {
+      setShowCommitment(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [storageReady, commitmentAccepted]);
+
+  useEffect(() => {
+    if (!showCommitment) return;
+    commitFade.setValue(0);
+    commitScale.setValue(0.98);
+    Animated.parallel([
+      Animated.timing(commitFade, {
+        toValue: 1,
+        duration: 180,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(commitScale, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [showCommitment, commitFade, commitScale]);
+
+  useEffect(() => {
+    if (!maintenanceMode) return;
+    if (isChecked("pe")) {
+      setChecked("pe", false);
+    }
+  }, [maintenanceMode]);
+
+  useEffect(() => {
+    if (!maintenanceMode) {
+      maintenancePulse.setValue(0);
+      return;
+    }
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(maintenancePulse, {
+          toValue: 1,
+          duration: 4000,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: false,
+        }),
+        Animated.timing(maintenancePulse, {
+          toValue: 0,
+          duration: 4000,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [maintenanceMode, maintenancePulse]);
 
   const setStored = async (key, value) => {
     await AsyncStorage.setItem(key, value);
     setStorageMap((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const removeStored = async (key) => {
+    await AsyncStorage.removeItem(key);
+    setStorageMap((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   };
 
   const setChecked = async (item, value, day = dateKey) => {
@@ -607,7 +738,66 @@ export default function App() {
 
   const recoveryActive = isChecked("recovery");
   const minimumDone = isChecked("mobility");
-  const bonusDone = ["arc", "pe", "support"].filter((item) => isChecked(item)).length;
+  const graceActive = isChecked("skip");
+  const bodySignalActive = bodyCheckValue && bodyCheckValue !== "none";
+  const bonusDone = ["arc", "pe", "support", "shoulder"]
+    .filter((item) => isChecked(item)).length;
+  const completedToday = ["mobility", "flex", "arc", "pe", "support", "shoulder"]
+    .some((item) => isChecked(item));
+
+  const graceCount14 = useMemo(() => {
+    let count = 0;
+    for (let i = 0; i < 14; i += 1) {
+      const key = addDays(dateKey, -i);
+      if (storageMap[dailyKey("skip", key)] === "1") count += 1;
+    }
+    return count;
+  }, [storageMap, dateKey, dailyKey]);
+
+  const lastCompletionGap = useMemo(() => {
+    for (let i = 0; i < 30; i += 1) {
+      const key = addDays(dateKey, -i);
+      if (
+        storageMap[dailyKey("mobility", key)] === "1" ||
+        storageMap[dailyKey("skip", key)] === "1"
+      ) {
+        return i;
+      }
+    }
+    return null;
+  }, [storageMap, dateKey, dailyKey]);
+
+  const recoveryExtended =
+    recoveryActive && storageMap[dailyKey("recovery", addDays(dateKey, -1))] === "1";
+  const streakBroken =
+    !minimumDone &&
+    !graceActive &&
+    lastCompletionGap !== null &&
+    lastCompletionGap >= 2;
+  const softLanding = streakBroken || graceCount14 >= 2 || recoveryExtended;
+
+  const quote = useMemo(() => {
+    const pickFrom = (tags) =>
+      quotes.filter((q) => q.tags && q.tags.some((tag) => tags.includes(tag)));
+
+    if (softLanding) {
+      return pickQuote(`${dateKey}:soft`, pickFrom(["soft"]));
+    }
+    if (completedToday && !recoveryActive && !graceActive) {
+      return pickQuote(`${dateKey}:post`, pickFrom(["anchor", "neutral", "identity"]));
+    }
+    if (bodySignalActive || recoveryActive || graceActive) {
+      return pickQuote(`${dateKey}:gentle`, pickFrom(["anchor", "neutral"]));
+    }
+    return pickQuote(`${dateKey}:default`, pickFrom(["anchor", "neutral", "hard"]));
+  }, [
+    dateKey,
+    bodySignalActive,
+    recoveryActive,
+    graceActive,
+    completedToday,
+    softLanding,
+  ]);
 
   const todayXp = useMemo(() => {
     if (recoveryActive) return 1;
@@ -676,7 +866,6 @@ export default function App() {
     let cursor = new Date(today);
     const todayDone =
       storageMap[dailyKey("mobility", dateKey)] === "1" ||
-      storageMap[dailyKey("recovery", dateKey)] === "1" ||
       storageMap[dailyKey("skip", dateKey)] === "1";
     if (!todayDone) cursor.setDate(cursor.getDate() - 1);
 
@@ -684,7 +873,6 @@ export default function App() {
       const key = formatLocalDate(cursor);
       const done =
         storageMap[dailyKey("mobility", key)] === "1" ||
-        storageMap[dailyKey("recovery", key)] === "1" ||
         storageMap[dailyKey("skip", key)] === "1";
       if (done) count += 1;
       else break;
@@ -697,9 +885,6 @@ export default function App() {
   const lastXpProgress = useRef(null);
 
   useEffect(() => {
-    if (lastXpProgress.current !== null && levelInfo.progress > lastXpProgress.current) {
-      Vibration.vibrate(5);
-    }
     lastXpProgress.current = levelInfo.progress;
     Animated.timing(xpProgress, {
       toValue: levelInfo.progress,
@@ -708,42 +893,6 @@ export default function App() {
       useNativeDriver: false,
     }).start();
   }, [levelInfo.progress, xpProgress]);
-
-  useEffect(() => {
-    if (lastStreak.current === null) {
-      lastStreak.current = streak;
-      return;
-    }
-    if (streak === lastStreak.current) return;
-    lastStreak.current = streak;
-    Vibration.vibrate([0, 10, 60, 10, 60, 30]);
-    Animated.parallel([
-      Animated.sequence([
-        Animated.timing(streakScale, {
-          toValue: 1.06,
-          duration: 140,
-          useNativeDriver: false,
-        }),
-        Animated.spring(streakScale, {
-          toValue: 1,
-          friction: 5,
-          useNativeDriver: false,
-        }),
-      ]),
-      Animated.sequence([
-        Animated.timing(streakGlow, {
-          toValue: 1,
-          duration: 160,
-          useNativeDriver: false,
-        }),
-        Animated.timing(streakGlow, {
-          toValue: 0,
-          duration: 280,
-          useNativeDriver: false,
-        }),
-      ]),
-    ]).start();
-  }, [streak, streakScale, streakGlow]);
 
   const skipInfo = useMemo(() => {
     const weekStart = getWeekStart(today);
@@ -764,7 +913,7 @@ export default function App() {
     return { active: isChecked("skip"), disabled: false, label: "1 / week" };
   }, [storageMap, minimumDone, today, dateKey, dailyKey]);
 
-  const rewardItems = new Set(["mobility", "flex", "arc", "pe", "support"]);
+  const rewardItems = new Set(["mobility", "flex", "arc", "pe", "support", "shoulder"]);
 
   const handleToggle = async (item) => {
     if (item === "skip" && skipInfo.disabled) return;
@@ -784,7 +933,7 @@ export default function App() {
     if (next) Vibration.vibrate(5);
     await setChecked("recovery", next);
     if (next) {
-      for (const item of ["arc", "pe", "support", "flex"]) {
+      for (const item of ["arc", "pe", "support", "shoulder", "flex"]) {
         await setChecked(item, false);
       }
     }
@@ -815,12 +964,88 @@ export default function App() {
     await setNoteChecked(group, item, next);
   };
 
+  const handleBodyCheck = async (id) => {
+    await setStored(bodyCheckKey(), id);
+    setBodyCheckManualOpen(false);
+    setBodyCheckExpanded(false);
+  };
+
+  const toggleMaintenance = async () => {
+    const next = maintenanceMode ? "0" : "1";
+    await setStored(maintenanceKey, next);
+    if (next === "1") {
+      await setChecked("pe", false);
+    }
+  };
+
+  const showMaintenanceInfo = () => {
+    Alert.alert(
+      "Maintenance Mode",
+      "Keeps the habit alive with lower load:\n• Mobility → Essential 5 (~10 min)\n• ARC → 1x/week\n• No power-endurance"
+    );
+  };
+
+  const showRecoveryInfo = () => {
+    Alert.alert(
+      "Recovery",
+      "Marks today as recovery. Bonus sessions are paused."
+    );
+  };
+
+  const showGraceInfo = () => {
+    Alert.alert(
+      "Grace",
+      "Use once per week to protect your streak when you need a pass."
+    );
+  };
+
+  const showTimerModeInfo = () => {
+    Alert.alert(
+      "Timer modes",
+      "Free: 1-minute tone.\nIntervals: 10s / 30s / 60s tones.\nSilent: haptic ticks at 10s / 30s / 60s."
+    );
+  };
+
+  const acceptCommitment = async () => {
+    if (commitText !== "I commit") return;
+    Vibration.vibrate(1000);
+    Animated.parallel([
+      Animated.timing(commitFade, {
+        toValue: 0,
+        duration: 220,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(commitScale, {
+        toValue: 0.98,
+        duration: 220,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start(async () => {
+      await setStored(commitmentKey, "1");
+      setShowCommitment(false);
+      setCommitText("");
+    });
+  };
+
+  const closeApp = () => {
+    if (Platform.OS === "android") {
+      BackHandler.exitApp();
+      return;
+    }
+    Alert.alert("Close app", "Please close the app to continue.");
+  };
+
   const resetToday = async () => {
-    for (const item of ["mobility", "flex", "arc", "pe", "support"]) {
+    for (const item of ["mobility", "flex", "arc", "pe", "support", "shoulder"]) {
       await setChecked(item, false);
     }
     await setChecked("recovery", false);
     await setChecked("skip", false);
+    await removeStored(bodyCheckKey());
+    setBodyCheckManualOpen(false);
+    setBodyCheckExpanded(true);
     for (const opt of noteLimiters) {
       await setNoteChecked("limiters", opt.id, false);
     }
@@ -893,13 +1118,19 @@ export default function App() {
     };
   }, [storageMap, last7Sessions]);
 
-  const SectionCard = ({ children, onLayout }) => (
-    <View onLayout={onLayout} style={styles.card}>
+  const steerStyleFor = (tags) => {
+    if (!tags.some((tag) => bodySteer.has(tag))) return null;
+    const strong = tags.includes("crimp") && bodySteer.has("crimp");
+    return strong ? styles.steerMutedStrong : styles.steerMuted;
+  };
+
+  const SectionCard = ({ children, onLayout, style }) => (
+    <View onLayout={onLayout} style={[styles.card, style]}>
       {children}
     </View>
   );
 
-  const PillButton = ({ children, active, disabled, onPress, muted }) => {
+  const PillButton = ({ children, active, disabled, onPress, onLongPress, muted }) => {
     const pulse = useRef(new Animated.Value(1)).current;
 
     useEffect(() => {
@@ -908,12 +1139,12 @@ export default function App() {
           Animated.sequence([
             Animated.timing(pulse, {
               toValue: 1.3,
-              duration: 520,
+              duration: 4000,
               useNativeDriver: true,
             }),
             Animated.timing(pulse, {
               toValue: 1,
-              duration: 520,
+              duration: 4000,
               useNativeDriver: true,
             }),
           ])
@@ -931,6 +1162,7 @@ export default function App() {
     return (
       <Pressable
         onPress={onPress}
+        onLongPress={onLongPress}
         disabled={disabled}
         style={({ pressed }) => [
           styles.pill,
@@ -1017,8 +1249,48 @@ export default function App() {
               <Text style={styles.quoteAuthor}>— {quote.author}</Text>
             ) : null}
           </View>
-          <View style={styles.todayPill}>
-            <Text style={styles.todayText}>{dateText}</Text>
+          <View style={styles.headerRow}>
+            <View style={styles.todayPill}>
+              <Text style={styles.todayText}>{dateText}</Text>
+            </View>
+            <Pressable
+              onPress={toggleMaintenance}
+              onLongPress={showMaintenanceInfo}
+              style={({ pressed }) => [
+                styles.maintenanceToggle,
+                maintenanceMode && styles.maintenanceToggleActive,
+                pressed && styles.maintenanceTogglePressed,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.maintenanceText,
+                  maintenanceMode && styles.maintenanceTextActive,
+                ]}
+              >
+                Maintenance
+              </Text>
+              <Animated.View
+                style={[
+                  styles.maintenanceDot,
+                  maintenanceMode && styles.maintenanceDotActive,
+                  maintenanceMode && {
+                    opacity: maintenancePulse.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.35, 0.85],
+                    }),
+                    transform: [
+                      {
+                        scale: maintenancePulse.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [1, 1.25],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              />
+            </Pressable>
           </View>
             </View>
 
@@ -1054,18 +1326,58 @@ export default function App() {
                   </View>
                 </View>
               </Animated.View>
+              {showStreakNote ? (
+                <Text style={styles.streakNote}>
+                  Streak tracks body care, not training volume.
+                </Text>
+              ) : null}
               <View style={styles.pillRowSplit}>
                 <PillButton
                   active={skipInfo.active}
                   disabled={skipInfo.disabled}
                   onPress={() => handleToggle("skip")}
+                  onLongPress={showGraceInfo}
                   muted
                 >
                   ○ Grace {skipInfo.label}
                 </PillButton>
-                <PillButton active={recoveryActive} onPress={handleRecovery}>
+                <PillButton
+                  active={recoveryActive}
+                  onPress={handleRecovery}
+                  onLongPress={showRecoveryInfo}
+                >
                   {recoveryActive ? "Recovering..." : "🌿 Recovery"}
                 </PillButton>
+              </View>
+
+              <View style={styles.bodyCheck}>
+                <View style={styles.bodyCheckHeader}>
+                  <Text style={styles.bodyCheckTitle}>Body check (today)</Text>
+                  {bodyCheckValue && !bodyCheckExpanded ? (
+                    <Pressable
+                      onPress={() => {
+                        setBodyCheckManualOpen(true);
+                        setBodyCheckExpanded(true);
+                      }}
+                    >
+                      <Text style={styles.bodyCheckChange}>Change</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+                {bodyCheckValue && !bodyCheckExpanded ? (
+                  <Text style={styles.bodyCheckSelected}>{bodyCheckLabel}</Text>
+                ) : (
+                  <View style={styles.bodyCheckGroup}>
+                    {bodyChecks.map((opt) => (
+                      <RadioRow
+                        key={opt.id}
+                        label={opt.label}
+                        checked={bodyCheckValue === opt.id}
+                        onToggle={() => handleBodyCheck(opt.id)}
+                      />
+                    ))}
+                  </View>
+                )}
               </View>
 
               <View style={styles.sectionDivider} />
@@ -1074,7 +1386,7 @@ export default function App() {
                 <View style={styles.systemBlock}>
                   <View style={styles.systemHeader}>
                     <View style={[styles.chip, styles.chipBonus, styles.systemBonusChip]}>
-                      <Text style={styles.chipText}>⚡ Bonus · ARC · Power · Core</Text>
+                      <Text style={styles.chipText}>⚡ Bonus · ARC · Power · Core · Shoulder</Text>
                       <View style={styles.bonusValue}>
                         <Text style={styles.bonusValueText}>
                           {recoveryActive ? "Paused" : `${bonusDone}`}
@@ -1119,54 +1431,61 @@ export default function App() {
             <Text style={styles.footer}>Boring works. Show up.</Text>
           </ScrollView>
           <Animated.View style={[styles.timerBar, { opacity: timerFade }]}>
-            <Text style={styles.timerBarLabel}>Session timer</Text>
-            <View style={styles.timerBarInner}>
+            <Pressable
+              onPress={registerTimerActivity}
+              onPressIn={registerTimerActivity}
+              style={styles.timerBarPress}
+            >
+              <Text style={styles.timerBarLabel}>Session timer</Text>
+              <View style={styles.timerBarInner}>
+                <Pressable
+                  onPress={resetTimer}
+                  style={({ pressed }) => {
+                    registerTimerActivity();
+                    return [styles.timerBarBtn, pressed && styles.timerBtnPressed];
+                  }}
+                >
+                  <Text style={styles.timerBarBtnText}>Reset</Text>
+                </Pressable>
+                <Animated.View
+                  style={[
+                    styles.timerDisplay,
+                    timerRunning && styles.timerDisplayActive,
+                    timerRunning && styles.timerDisplayRunning,
+                    { transform: [{ scale: timerResetScale }] },
+                  ]}
+                >
+                  <Text style={styles.timerDisplayText}>{formatTime(timerElapsed)}</Text>
+                </Animated.View>
+                <Pressable
+                  onPress={handleTimerToggle}
+                  style={({ pressed }) => {
+                    registerTimerActivity();
+                    return [
+                      styles.timerBtn,
+                      pressed && styles.timerBtnPressed,
+                      timerRunning && styles.timerBtnActive,
+                    ];
+                  }}
+                >
+                  <Text style={styles.timerBtnText}>
+                    {timerRunning ? "Pause" : "Go"}
+                  </Text>
+                </Pressable>
+              </View>
               <Pressable
-                onPress={resetTimer}
-                style={({ pressed }) => {
+                onPress={() => {
                   registerTimerActivity();
-                  return [styles.timerBarBtn, pressed && styles.timerBtnPressed];
+                  cycleTimerMode();
                 }}
-              >
-                <Text style={styles.timerBarBtnText}>Reset</Text>
-              </Pressable>
-              <Animated.View
-                style={[
-                  styles.timerDisplay,
-                  timerRunning && styles.timerDisplayActive,
-                  timerRunning && styles.timerDisplayRunning,
-                  { transform: [{ scale: timerResetScale }] },
+                onLongPress={showTimerModeInfo}
+                style={({ pressed }) => [
+                  styles.timerModeBtn,
+                  pressed && styles.timerBtnPressed,
                 ]}
               >
-                <Text style={styles.timerDisplayText}>{formatTime(timerElapsed)}</Text>
-              </Animated.View>
-              <Pressable
-                onPress={handleTimerToggle}
-                style={({ pressed }) => {
-                  registerTimerActivity();
-                  return [
-                    styles.timerBtn,
-                    pressed && styles.timerBtnPressed,
-                    timerRunning && styles.timerBtnActive,
-                  ];
-                }}
-              >
-                <Text style={styles.timerBtnText}>
-                  {timerRunning ? "Pause" : "Go"}
-                </Text>
+                <Text style={styles.timerModeBtnText}>Mode · {timerModeLabel}</Text>
               </Pressable>
-            </View>
-            <Pressable
-              onPress={() => {
-                registerTimerActivity();
-                cycleTimerMode();
-              }}
-              style={({ pressed }) => [
-                styles.timerModeBtn,
-                pressed && styles.timerBtnPressed,
-              ]}
-            >
-              <Text style={styles.timerModeBtnText}>Mode · {timerModeLabel}</Text>
             </Pressable>
           </Animated.View>
         </View>
@@ -1188,8 +1507,10 @@ export default function App() {
         >
           <View style={styles.cardHeaderRow}>
             <View style={styles.cardHeaderLeft}>
-              <Text style={styles.tag}>Daily · 20–25 min</Text>
-              <Text style={styles.cardTitle}>1. Daily Mobility (Non-Negotiable)</Text>
+              <Text style={styles.tag}>
+                {maintenanceMode ? "Daily · Essential 5 · 10 min" : "Daily · 20–25 min"}
+              </Text>
+              <Text style={styles.cardTitle}>Daily Mobility (Non-Negotiable)</Text>
             </View>
             <CheckboxRow
               compact
@@ -1200,28 +1521,45 @@ export default function App() {
           </View>
           {!isChecked("mobility") && (
             <View style={styles.cardBody}>
-              <Text style={styles.paragraph}>Open hips, shoulders, spine, and ankles. Breathe slow and nasal.</Text>
-              <Text style={styles.listItem}>
-                • Hips{"\n"}
-                {"  "}– Deep squat hold: 2–3 min total{"\n"}
-                {"  "}– Frog stretch: 2×60–90s{"\n"}
-                {"  "}– Cossack squats: 2×8/side
-              </Text>
-              <Text style={styles.listItem}>
-                • Spine{"\n"}
-                {"  "}– Thoracic rotations: 2×10/side{"\n"}
-                {"  "}– Cat–cow: 2×8
-              </Text>
-              <Text style={styles.listItem}>
-                • Shoulders{"\n"}
-                {"  "}– Internal + external rotation stretch: 2×45s{"\n"}
-                {"  "}– Overhead flexion stretch: 2×45s
-              </Text>
-              <Text style={styles.listItem}>
-                • Ankles{"\n"}
-                {"  "}– Knee-to-wall dorsiflexion: 2×10/side{"\n"}
-                {"  "}– Calf stretch bent + straight: 2×45s
-              </Text>
+              {maintenanceMode ? (
+                <>
+                  <Text style={styles.paragraph}>
+                    Essential 5. Keep it easy. Slow nasal breathing.
+                  </Text>
+                  <Text style={styles.listItem}>• Hips — deep squat hold 2 min total</Text>
+                  <Text style={styles.listItem}>• Spine — cat–cow 1×8</Text>
+                  <Text style={styles.listItem}>• Shoulders — external rotation stretch 2×30s</Text>
+                  <Text style={styles.listItem}>• Ankles — knee-to-wall 2×8/side</Text>
+                  <Text style={styles.listItem}>• Breath — 1 min nasal</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.paragraph}>
+                    Open hips, shoulders, spine, and ankles. Breathe slow and nasal.
+                  </Text>
+                  <Text style={styles.listItem}>
+                    • Hips{"\n"}
+                    {"  "}– Deep squat hold: 2–3 min total{"\n"}
+                    {"  "}– Frog stretch: 2×60–90s{"\n"}
+                    {"  "}– Cossack squats: 2×8/side
+                  </Text>
+                  <Text style={styles.listItem}>
+                    • Spine{"\n"}
+                    {"  "}– Thoracic rotations: 2×10/side{"\n"}
+                    {"  "}– Cat–cow: 2×8
+                  </Text>
+                  <Text style={styles.listItem}>
+                    • Shoulders{"\n"}
+                    {"  "}– Internal + external rotation stretch: 2×45s{"\n"}
+                    {"  "}– Overhead flexion stretch: 2×45s
+                  </Text>
+                  <Text style={styles.listItem}>
+                    • Ankles{"\n"}
+                    {"  "}– Knee-to-wall dorsiflexion: 2×10/side{"\n"}
+                    {"  "}– Calf stretch bent + straight: 2×45s
+                  </Text>
+                </>
+              )}
             </View>
           )}
         </SectionCard>
@@ -1234,7 +1572,7 @@ export default function App() {
           <View style={styles.cardHeaderRow}>
             <View style={styles.cardHeaderLeft}>
               <Text style={styles.tag}>3–4x/week</Text>
-              <Text style={styles.cardTitle}>2. Climbing-Specific Flexibility</Text>
+              <Text style={styles.cardTitle}>Climbing-Specific Flexibility</Text>
             </View>
             <CheckboxRow
               compact
@@ -1246,7 +1584,11 @@ export default function App() {
           </View>
           {!isChecked("flex") && (
             <View style={styles.cardBody}>
-              <Text style={styles.listItem}>• High-step holds on the wall — 3×20–30s/side</Text>
+              <Text style={styles.listItem}>
+                • High-step holds on the wall — 3×20–30s/side{"\n"}
+                {"  "}– At home: foot on chair/bench, slow hip flexion{"\n"}
+                {"  "}– Crowded gym: wall-supported knee raises
+              </Text>
               <Text style={styles.listItem}>• Drop-knee stretch — 3×20–30s/side</Text>
               <Text style={styles.listItem}>• Lock-off shoulder stretch — 2×30s/side</Text>
             </View>
@@ -1257,11 +1599,12 @@ export default function App() {
           onLayout={(e) => {
             exerciseLayoutRef.current.arc = e.nativeEvent.layout.y;
           }}
+          style={steerStyleFor(["pull"])}
         >
           <View style={styles.cardHeaderRow}>
             <View style={styles.cardHeaderLeft}>
-              <Text style={styles.tag}>2–3x/week</Text>
-              <Text style={styles.cardTitle}>3. Endurance Base (ARC)</Text>
+              <Text style={styles.tag}>{maintenanceMode ? "1x/week" : "2–3x/week"}</Text>
+              <Text style={styles.cardTitle}>Endurance Base (ARC)</Text>
             </View>
             <CheckboxRow
               compact
@@ -1284,22 +1627,26 @@ export default function App() {
           onLayout={(e) => {
             exerciseLayoutRef.current.pe = e.nativeEvent.layout.y;
           }}
+          style={steerStyleFor(["pull", "shoulder"])}
         >
           <View style={styles.cardHeaderRow}>
             <View style={styles.cardHeaderLeft}>
               <Text style={styles.tag}>2x/week max</Text>
-              <Text style={styles.cardTitle}>4. Power-Endurance (Pain Zone)</Text>
+              <Text style={styles.cardTitle}>Power-Endurance (Anaerobic Capacity)</Text>
             </View>
             <CheckboxRow
               compact
               label="Completed"
               checked={isChecked("pe")}
-              disabled={recoveryActive}
+              disabled={recoveryActive || maintenanceMode}
               onToggle={() => handleToggle("pe")}
             />
           </View>
           {!isChecked("pe") && (
             <View style={styles.cardBody}>
+              {maintenanceMode ? (
+                <Text style={styles.subtleNote}>Maintenance mode: skip power-endurance.</Text>
+              ) : null}
               <Text style={styles.listItem}>
                 • 4×4s{"\n"}
                 {"  "}– 4 boulders @ ~80%{"\n"}
@@ -1319,13 +1666,41 @@ export default function App() {
 
         <SectionCard
           onLayout={(e) => {
-            exerciseLayoutRef.current.support = e.nativeEvent.layout.y;
+            exerciseLayoutRef.current.shoulder = e.nativeEvent.layout.y;
           }}
+          style={steerStyleFor(["shoulder"])}
         >
           <View style={styles.cardHeaderRow}>
             <View style={styles.cardHeaderLeft}>
               <Text style={styles.tag}>1–2x/week</Text>
-              <Text style={styles.cardTitle}>5. Forearm & Core Support (No Gear)</Text>
+              <Text style={styles.cardTitle}>Shoulder Support</Text>
+            </View>
+            <CheckboxRow
+              compact
+              label="Completed"
+              checked={isChecked("shoulder")}
+              disabled={recoveryActive}
+              onToggle={() => handleToggle("shoulder")}
+            />
+          </View>
+          {!isChecked("shoulder") && (
+            <View style={styles.cardBody}>
+              <Text style={styles.listItem}>• Side-lying external rotation — 2×12</Text>
+              <Text style={styles.listItem}>• Band pull-aparts — 2×15</Text>
+            </View>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          onLayout={(e) => {
+            exerciseLayoutRef.current.support = e.nativeEvent.layout.y;
+          }}
+          style={steerStyleFor(["crimp"])}
+        >
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.cardHeaderLeft}>
+              <Text style={styles.tag}>1–2x/week</Text>
+              <Text style={styles.cardTitle}>Forearm & Core Support (No Gear)</Text>
             </View>
             <CheckboxRow
               compact
@@ -1340,7 +1715,8 @@ export default function App() {
               <Text style={styles.listItem}>
                 • Forearms{"\n"}
                 {"  "}– Towel or edge hangs: 6–10s on / 6–10s off ×6–8{"\n"}
-                {"  "}– Wrist flexion/extension: 2×15
+                {"  "}– Wrist flexion/extension: 2×15{"\n"}
+                {"  "}– If skin is thin or tender, skip today.
               </Text>
               <Text style={styles.listItem}>
                 • Core{"\n"}
@@ -1354,10 +1730,17 @@ export default function App() {
 
         <SectionCard>
           <Text style={styles.tag}>Weekly structure</Text>
-          <Text style={styles.cardTitle}>6. Weekly Structure</Text>
-          <Text style={styles.listItem}>• Daily: mobility</Text>
-          <Text style={styles.listItem}>• 2–3x/week: ARC endurance</Text>
-          <Text style={styles.listItem}>• 2x/week: power-endurance</Text>
+          <Text style={styles.cardTitle}>Weekly Structure</Text>
+          <Text style={styles.listItem}>
+            • Daily: {maintenanceMode ? "mobility (Essential 5)" : "mobility"}
+          </Text>
+          <Text style={styles.listItem}>
+            • {maintenanceMode ? "1x/week" : "2–3x/week"}: ARC endurance
+          </Text>
+          <Text style={styles.listItem}>
+            • {maintenanceMode ? "0x/week" : "2x/week"}: power-endurance
+          </Text>
+          <Text style={styles.listItem}>• 1–2x/week: shoulder support</Text>
           <Text style={styles.listItem}>• 1–2x/week: forearm + core</Text>
           <Text style={styles.listItem}>• 1 full rest day or active recovery only</Text>
           <Text style={styles.notice}>Flexibility comes from consistency. Endurance comes from staying relaxed under load.</Text>
@@ -1470,6 +1853,47 @@ export default function App() {
           </ScrollView>
         </View>
       </ScrollView>
+      {showCommitment && (
+        <Animated.View style={[styles.commitOverlay, { opacity: commitFade }]}>
+          <Animated.View style={[styles.commitCard, { transform: [{ scale: commitScale }] }]}>
+            <Text style={styles.commitTitle}>This app only works if you use it.</Text>
+            <Text style={styles.commitBody}>
+              We didn't build this to sit on your phone.
+              {"\n"}
+              We built it to help you show up, even when you don't feel like it.
+              {"\n"}
+              If you're in, commit.
+            </Text>
+            <TextInput
+              value={commitText}
+              onChangeText={setCommitText}
+              placeholder="Type I commit"
+              placeholderTextColor={withAlpha(colors.muted, 0.6)}
+              autoCorrect={false}
+              autoCapitalize="none"
+              spellCheck={false}
+              style={styles.commitInput}
+              selectionColor={colors.accent}
+              returnKeyType="done"
+              onSubmitEditing={acceptCommitment}
+            />
+            <Pressable
+              onPress={acceptCommitment}
+              disabled={!commitReady}
+              style={({ pressed }) => [
+                styles.commitButton,
+                !commitReady && styles.commitButtonDisabled,
+                pressed && commitReady && styles.commitButtonPressed,
+              ]}
+            >
+              <Text style={styles.commitButtonText}>Commit</Text>
+            </Pressable>
+            <Pressable onPress={closeApp}>
+              <Text style={styles.commitClose}>Close app</Text>
+            </Pressable>
+          </Animated.View>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -1491,8 +1915,8 @@ const createStyles = (colors, isDark) =>
     paddingBottom: 120,
   },
   header: {
-    paddingTop: 24,
-    paddingBottom: 24,
+    paddingTop: 14,
+    paddingBottom: 12,
   },
   quoteCard: {
     padding: 18,
@@ -1512,8 +1936,13 @@ const createStyles = (colors, isDark) =>
     color: colors.muted,
     marginTop: 8,
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
   todayPill: {
-    marginTop: 8,
     alignSelf: "flex-start",
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -1523,9 +1952,114 @@ const createStyles = (colors, isDark) =>
     backgroundColor: colors.card2,
   },
   todayText: {
-    color: colors.muted,
+    color: withAlpha(colors.muted, 0.8),
     fontSize: 12,
     letterSpacing: 0.3,
+  },
+  maintenanceToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: withAlpha(colors.line, 0.7),
+    backgroundColor: colors.card2,
+  },
+  maintenanceToggleActive: {
+    borderColor: withAlpha(colors.muted, 0.5),
+    backgroundColor: withAlpha(colors.muted, 0.08),
+  },
+  maintenanceTogglePressed: {
+    opacity: 0.85,
+  },
+  maintenanceText: {
+    color: withAlpha(colors.muted, 0.8),
+    fontSize: 11,
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+  },
+  maintenanceTextActive: {
+    color: withAlpha(colors.muted, 0.95),
+  },
+  maintenanceDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: withAlpha(colors.muted, 0.35),
+  },
+  maintenanceDotActive: {
+    backgroundColor: withAlpha(colors.muted, 0.7),
+  },
+  commitOverlay: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: withAlpha(colors.bg, isDark ? 0.82 : 0.72),
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  commitCard: {
+    width: "100%",
+    maxWidth: 420,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+    padding: 18,
+  },
+  commitTitle: {
+    color: colors.ink,
+    fontSize: 18,
+    lineHeight: 24,
+    marginBottom: 10,
+    fontFamily: Platform.select({ ios: "Georgia", android: "serif", default: "serif" }),
+  },
+  commitBody: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  commitInput: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: colors.ink,
+    backgroundColor: colors.card2,
+    marginBottom: 12,
+  },
+  commitButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: withAlpha(colors.muted, 0.4),
+    backgroundColor: withAlpha(colors.muted, 0.12),
+    paddingVertical: 10,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  commitButtonDisabled: {
+    opacity: 0.5,
+  },
+  commitButtonPressed: {
+    opacity: 0.8,
+  },
+  commitButtonText: {
+    color: colors.ink,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+    fontSize: 12,
+  },
+  commitClose: {
+    color: colors.muted,
+    fontSize: 11,
+    textAlign: "center",
   },
   headerTight: {
     paddingTop: 12,
@@ -1568,6 +2102,7 @@ const createStyles = (colors, isDark) =>
     fontSize: 18,
     fontFamily: Platform.select({ ios: "Georgia", android: "serif", default: "serif" }),
     marginBottom: 8,
+    width: "100%",
   },
   cardHeaderRow: {
     flexDirection: "row",
@@ -1576,7 +2111,7 @@ const createStyles = (colors, isDark) =>
     gap: 10,
   },
   cardHeaderLeft: {
-    flexShrink: 1,
+    flex: 1,
     paddingRight: 6,
   },
   summaryLabel: {
@@ -1645,6 +2180,11 @@ const createStyles = (colors, isDark) =>
     borderLeftColor: colors.danger,
     color: colors.muted,
   },
+  subtleNote: {
+    color: colors.muted,
+    fontSize: 12,
+    marginBottom: 6,
+  },
   timerBtn: {
     minWidth: 54,
     height: 34,
@@ -1704,6 +2244,9 @@ const createStyles = (colors, isDark) =>
     backgroundColor: colors.card2,
     paddingVertical: 8,
     paddingHorizontal: 10,
+  },
+  timerBarPress: {
+    width: "100%",
   },
   timerBarLabel: {
     color: withAlpha(colors.muted, 0.7),
@@ -1804,6 +2347,54 @@ const createStyles = (colors, isDark) =>
     color: colors.ink,
     fontSize: 22,
     fontFamily: Platform.select({ ios: "Georgia", android: "serif", default: "serif" }),
+  },
+  streakNote: {
+    marginBottom: 10,
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  bodyCheck: {
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card2,
+  },
+  bodyCheckHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 6,
+  },
+  bodyCheckTitle: {
+    color: colors.muted,
+    fontSize: 12,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  bodyCheckChange: {
+    color: colors.muted,
+    fontSize: 12,
+    textDecorationLine: "underline",
+    textDecorationStyle: "solid",
+  },
+  bodyCheckSelected: {
+    color: colors.ink,
+    fontSize: 14,
+    marginTop: 2,
+  },
+  bodyCheckGroup: {
+    gap: 6,
+    marginTop: 2,
+  },
+  steerMuted: {
+    opacity: 0.55,
+  },
+  steerMutedStrong: {
+    opacity: 0.4,
   },
   pillRow: {
     flexDirection: "row",

@@ -474,6 +474,105 @@
         0 0 0 2px rgba(12,26,20,0.25),
         0 0 18px rgba(177,255,158,0.65); }
     }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+      color: var(--ink);
+    }
+
+    .summary-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--line);
+    }
+
+    .dot.active {
+      background: rgba(177,255,158,0.7);
+    }
+
+    .dot.recent {
+      box-shadow: 0 0 0 1px rgba(185,196,208,0.5);
+    }
+    
+    .radio-group {
+      display: grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    
+    .radio-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      cursor: pointer;
+    }
+    
+    .radio-label input {
+      accent-color: var(--accent);
+    }
+
+    .body-check {
+      margin: 10px 0 16px;
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .body-check-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .body-check-change {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 0;
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    .body-check-selected {
+      font-size: 0.98rem;
+      color: var(--ink);
+      margin-top: 2px;
+    }
+
+    .steer-muted {
+      opacity: 0.55;
+      filter: grayscale(0.25);
+    }
+
+    .steer-muted-strong {
+      opacity: 0.35;
+      filter: grayscale(0.65);
+    }
+
+    .streak-note {
+      margin-top: 8px;
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 <body>
@@ -504,6 +603,20 @@
             <span class="dot"></span> 🎟️ Skip <span class="pill-note" id="skipStatus">1 / week</span>
           </button>
         </div>
+        <p id="streakCareNote" class="notice streak-note" style="display:none">Streak tracks body care, not training volume.</p>
+      </div>
+      <div class="body-check">
+        <div class="body-check-header">
+          <div class="system-title">Body check (today)</div>
+          <button type="button" id="bodyCheckChange" class="body-check-change">Change</button>
+        </div>
+        <div id="bodyCheckSelected" class="body-check-selected">—</div>
+        <div id="bodyCheckOptions" class="radio-group body-check-group">
+          <label class="radio-label"><input type="radio" name="bodyCheck" value="fingers" />Fingers feel stiff</label>
+          <label class="radio-label"><input type="radio" name="bodyCheck" value="elbows" />Elbows feel tender</label>
+          <label class="radio-label"><input type="radio" name="bodyCheck" value="shoulders" />Shoulders feel tight</label>
+          <label class="radio-label"><input type="radio" name="bodyCheck" value="none" />Nothing notable</label>
+        </div>
       </div>
       <div class="system-grid">
         <div class="system-block">
@@ -516,7 +629,7 @@
           </div>
         </div>
         <div class="system-block">
-          <div class="system-title">🎲 Weekly Challenge</div>
+          <div class="system-title">⛓️ Weekly Constraint</div>
           <div class="challenge-card">
             <div id="weeklyChallenge">—</div>
             <small class="system-note">Auto‑set each week</small>
@@ -577,7 +690,7 @@
       </ul>
     </section>
 
-    <section class="card">
+    <section class="card" data-load="pull">
       <span class="tag">2–3x/week</span>
       <h2>3. Endurance Base (ARC)</h2>
       <div class="card-controls">
@@ -601,7 +714,7 @@
       </ul>
     </section>
 
-    <section class="card">
+    <section class="card" data-load="pull shoulder">
       <span class="tag">2x/week max</span>
       <h2>4. Power‑Endurance (Pain Zone)</h2>
       <div class="card-controls">
@@ -624,7 +737,7 @@
       </ul>
     </section>
 
-    <section class="card">
+    <section class="card" data-load="crimp">
       <span class="tag">1–2x/week</span>
       <h2>5. Forearm & Core Support (No Gear)</h2>
       <div class="card-controls">
@@ -660,10 +773,31 @@
       <p class="notice">Flexibility comes from consistency. Endurance comes from staying relaxed under load.</p>
     </section>
 
+    <section class="card">
+      <h2>Session Notes (Optional)</h2>
+      <div style="margin-top: 12px;">
+        <h3 style="font-size: 1rem; margin-bottom: 8px;">What limited today’s session?</h3>
+        <div id="limitersList" class="checklist"></div>
+      </div>
+      <div style="margin-top: 24px;">
+        <h3 style="font-size: 1rem; margin-bottom: 8px;">How did it feel overall?</h3>
+        <div id="feelsList" class="radio-group"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>History</h2>
+      <div style="margin-bottom: 12px; color: var(--muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;">Limiters</div>
+      <div id="historyLimiters"></div>
+      <div style="margin: 16px 0 12px; color: var(--muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;">Overall Feel</div>
+      <div id="historyFeels"></div>
+      <p id="historyEmpty" class="notice" style="display:none">No notes recorded in the last 7 sessions.</p>
+    </section>
+
     <div class="btns">
       <button id="installApp" style="display: none;">📲 Install App</button>
-      <a href="/routine-mobile-arm64-v1.0.2.apk" download style="text-decoration: none;">
-        <button id="downloadApk">🤖 Download APK v1.0.2</button>
+      <a href="/routine-mobile-arm64-v1.0.3.apk" download style="text-decoration: none;">
+        <button id="downloadApk">🤖 Download APK v1.0.3</button>
       </a>
       <button id="resetToday">Reset today</button>
       <button id="clearAll">Clear all history</button>
@@ -715,23 +849,53 @@
     const dailyKey = (item, day = dateKey) => `climb-routine:${item}:${day}`;
     const xpKey = (day = dateKey) => `climb-routine:xp:${day}`;
     const challengeKey = (week) => `climb-routine:challenge:${week}`;
+    const bodyCheckKey = (day = dateKey) => `climb-routine:body-check:${day}`;
+    const streakCareKey = "climb-routine:streak-care-note-seen";
     const levels = [20, 45, 75, 110];
+    const levelNames = [
+      "Habit Lock",
+      "Load Tolerance",
+      "Accumulation Capacity",
+      "Sustainable Performance",
+    ];
     const challenges = [
-      "ARC only. Zero power.",
-      "Mobility twice, no endurance.",
-      "Silent session. No music.",
-      "Left side priority.",
-      "Slow feet. Perfect form only.",
-      "No chalk until you feel pump.",
-      "Long rests, perfect execution.",
+      "ARC-only week. No power or power-endurance.",
+      "Mobility every day. One session doubled.",
+      "Silent sessions. No music/podcasts.",
+      "Left/right-side priority. Start on weaker side.",
+      "Technique-only: drop 1–2 grades, perfect form.",
+      "No-pump rule: stop when pump starts.",
+      "Long holds: fewer reps, longer positions.",
+      "Minimum-only week. No bonus sessions.",
+      "Form-first: end set at first breakdown.",
+      "Deliberate recovery: add one extra recovery day.",
+      "Time-blind sessions. No clock checking.",
+      "Reduced volume 30–40%, same quality.",
+      "Position ownership audit: re-test key positions.",
     ];
 
     pickQuote();
     document.getElementById("today").textContent = dateText;
+    const streakCareNote = document.getElementById("streakCareNote");
+    if (streakCareNote && localStorage.getItem(streakCareKey) !== "1") {
+      streakCareNote.style.display = "block";
+      localStorage.setItem(streakCareKey, "1");
+    }
 
     const exerciseInputs = document.querySelectorAll("input[data-item]");
     const recoveryDay = document.getElementById("recoveryDay");
     const skipToken = document.getElementById("skipToken");
+    const bodyCheckInputs = document.querySelectorAll('input[name="bodyCheck"]');
+    const bodyCheckSelected = document.getElementById("bodyCheckSelected");
+    const bodyCheckOptions = document.getElementById("bodyCheckOptions");
+    const bodyCheckChange = document.getElementById("bodyCheckChange");
+    const bodyCheckLabels = {
+      fingers: "Fingers feel stiff",
+      elbows: "Elbows feel tender",
+      shoulders: "Shoulders feel tight",
+      none: "Nothing notable",
+    };
+    let bodyCheckManualOpen = false;
 
     function getWeekStart(d) {
       const date = new Date(d);
@@ -809,6 +973,68 @@
       setSkipUI(next, false, "1 / week");
       updateSystem();
     });
+
+    const bodySteerRules = {
+      fingers: ["crimp"],
+      elbows: ["pull"],
+      shoulders: ["shoulder"],
+      none: [],
+    };
+
+    function getBodyCheck(day = dateKey) {
+      return localStorage.getItem(bodyCheckKey(day)) || "";
+    }
+
+    function setBodyCheck(value, day = dateKey) {
+      if (!value) {
+        localStorage.removeItem(bodyCheckKey(day));
+        return;
+      }
+      localStorage.setItem(bodyCheckKey(day), value);
+    }
+
+    function renderBodyCheck() {
+      const value = getBodyCheck();
+      const label = bodyCheckLabels[value] || "";
+      bodyCheckInputs.forEach((input) => {
+        input.checked = input.value === value;
+      });
+      const expanded = bodyCheckManualOpen || !value;
+      if (bodyCheckSelected) bodyCheckSelected.textContent = label || "—";
+      if (bodyCheckOptions) bodyCheckOptions.style.display = expanded ? "grid" : "none";
+      if (bodyCheckSelected) bodyCheckSelected.style.display = expanded ? "none" : "block";
+      if (bodyCheckChange) bodyCheckChange.style.display = expanded || !value ? "none" : "inline";
+    }
+
+    function applyBodySteer() {
+      const value = getBodyCheck();
+      const tags = bodySteerRules[value] || [];
+      document.querySelectorAll("[data-load]").forEach((card) => {
+        const loads = (card.dataset.load || "").split(" ").filter(Boolean);
+        const isCrimp = tags.includes("crimp") && loads.includes("crimp");
+        const isPull = tags.includes("pull") && loads.includes("pull");
+        const isShoulder = tags.includes("shoulder") && loads.includes("shoulder");
+        const muted = isPull || isShoulder || isCrimp;
+        card.classList.toggle("steer-muted", muted && !isCrimp);
+        card.classList.toggle("steer-muted-strong", isCrimp);
+      });
+    }
+
+    bodyCheckInputs.forEach((input) => {
+      input.addEventListener("change", () => {
+        setBodyCheck(input.value);
+        bodyCheckManualOpen = false;
+        renderBodyCheck();
+        applyBodySteer();
+      });
+    });
+
+    if (bodyCheckChange) {
+      bodyCheckChange.addEventListener("click", () => {
+        bodyCheckManualOpen = true;
+        renderBodyCheck();
+      });
+    }
 
 
     function updateSystem() {
@@ -922,7 +1148,8 @@
 
       document.getElementById("levelProgress").style.width = `${Math.min(progress * 100, 100)}%`;
       const cap = totalXp >= levels[3] ? levels[3] : next;
-      document.getElementById("levelLabel").textContent = `${Math.min(totalXp, cap)} / ${cap} XP · L${level}`;
+      const levelName = levelNames[level - 1] || "Unknown";
+      document.getElementById("levelLabel").textContent = `${levelName} · ${Math.min(totalXp, cap)} / ${cap}`;
     }
 
 
@@ -1034,6 +1261,16 @@
       setChecked("skip", false);
       setSkipUI(false, false, "1 / week");
       localStorage.setItem(xpKey(), "0");
+      setBodyCheck("");
+      bodyCheckManualOpen = false;
+      renderBodyCheck();
+      applyBodySteer();
+      
+      noteLimiters.forEach(o => setNoteChecked("limiters", o.id, false));
+      noteFeels.forEach(o => setNoteChecked("feel", o.id, false));
+      renderNotesUI();
+      updateHistory();
+
       timers.forEach((_, id) => stopTimer(id));
       updateSystem();
     });
@@ -1047,9 +1284,158 @@
       setChecked("recovery", false);
       setRecoveryUI(false);
       setSkipUI(false, false, "1 / week");
+      setBodyCheck("");
+      bodyCheckManualOpen = false;
+      renderBodyCheck();
+      applyBodySteer();
+      
+      renderNotesUI();
+      updateHistory();
+      
       timers.forEach((_, id) => stopTimer(id));
-      updateSystem();
+    renderBodyCheck();
+    applyBodySteer();
+    updateSystem();
     });
+
+    // --- Session Notes Logic ---
+    const noteLimiters = [
+      { id: "grip", label: "Grip / forearms" },
+      { id: "mobility", label: "Hips / mobility" },
+      { id: "power", label: "Power" },
+      { id: "endurance", label: "Endurance" },
+      { id: "focus", label: "Focus / attention" },
+      { id: "none", label: "Nothing felt limiting" },
+    ];
+
+    const noteFeels = [
+      { id: "easy", label: "Easy" },
+      { id: "controlled", label: "Controlled" },
+      { id: "hard_clean", label: "Hard but clean" },
+      { id: "sloppy", label: "Sloppy / fatigued" },
+    ];
+
+    const noteKey = (group, item, day = dateKey) => `climb-routine:note:${group}:${item}:${day}`;
+
+    function isNoteChecked(group, item, day = dateKey) {
+      return localStorage.getItem(noteKey(group, item, day)) === "1";
+    }
+
+    function setNoteChecked(group, item, value, day = dateKey) {
+      if (value) localStorage.setItem(noteKey(group, item, day), "1");
+      else localStorage.removeItem(noteKey(group, item, day));
+    }
+
+    function renderNotesUI() {
+      const limitersList = document.getElementById("limitersList");
+      limitersList.innerHTML = "";
+      noteLimiters.forEach(opt => {
+        const label = document.createElement("label");
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = isNoteChecked("limiters", opt.id);
+        input.onchange = () => handleLimiterChange(opt.id, input.checked);
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(opt.label));
+        limitersList.appendChild(label);
+      });
+
+      const feelsList = document.getElementById("feelsList");
+      feelsList.innerHTML = "";
+      noteFeels.forEach(opt => {
+        const label = document.createElement("label");
+        label.className = "radio-label";
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = "feel";
+        input.checked = isNoteChecked("feel", opt.id);
+        input.onchange = () => handleFeelChange(opt.id);
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(opt.label));
+        feelsList.appendChild(label);
+      });
+    }
+
+    function handleLimiterChange(id, checked) {
+      if (id === "none" && checked) {
+        noteLimiters.forEach(opt => {
+          if (opt.id !== "none") setNoteChecked("limiters", opt.id, false);
+        });
+      } else if (id !== "none" && checked) {
+        setNoteChecked("limiters", "none", false);
+      }
+      setNoteChecked("limiters", id, checked);
+      renderNotesUI();
+      updateHistory();
+    }
+
+    function handleFeelChange(id) {
+      noteFeels.forEach(opt => {
+        setNoteChecked("feel", opt.id, opt.id === id);
+      });
+      renderNotesUI();
+      updateHistory();
+    }
+
+    function updateHistory() {
+      const sessionDates = new Set();
+      const allKeys = Object.keys(localStorage);
+      allKeys.forEach(k => {
+        if (k.startsWith("climb-routine:note:")) {
+          const parts = k.split(":");
+          if (parts[4]) sessionDates.add(parts[4]);
+        }
+      });
+      
+      const sortedDates = Array.from(sessionDates).sort().reverse().slice(0, 7);
+      
+      renderHistoryGroup("historyLimiters", "limiters", noteLimiters, sortedDates);
+      renderHistoryGroup("historyFeels", "feel", noteFeels, sortedDates);
+      
+      const empty = sortedDates.length === 0;
+      document.getElementById("historyEmpty").style.display = empty ? "block" : "none";
+      document.getElementById("historyLimiters").style.display = empty ? "none" : "block";
+      document.getElementById("historyFeels").style.display = empty ? "none" : "block";
+    }
+
+    function renderHistoryGroup(containerId, group, options, dates) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = "";
+      
+      const stats = options.map(opt => {
+        let count = 0;
+        const timeline = dates.map(d => {
+          const active = isNoteChecked(group, opt.id, d);
+          if(active) count++;
+          return active;
+        });
+        return { opt, count, timeline };
+      }).filter(s => s.count > 0).sort((a,b) => b.count - a.count);
+      
+      stats.forEach(stat => {
+        const row = document.createElement("div");
+        row.className = "summary-row";
+        
+        const label = document.createElement("span");
+        label.textContent = "• " + stat.opt.label;
+        row.appendChild(label);
+        
+        const dots = document.createElement("div");
+        dots.className = "summary-dots";
+        
+        stat.timeline.slice().reverse().forEach((active, idx) => {
+           const dot = document.createElement("div");
+           dot.className = "dot" + (active ? " active" : "") + (idx === stat.timeline.length - 1 ? " recent" : "");
+           dots.appendChild(dot);
+        });
+        
+        row.appendChild(dots);
+        container.appendChild(row);
+      });
+    }
+
+    renderNotesUI();
+    updateHistory();
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

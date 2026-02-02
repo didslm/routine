@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Climbing Routine",
+    "name": "Boring Works",
     "slug": "climbing-routine",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icons/finalo.png",
     "userInterfaceStyle": "automatic",
@@ -15,7 +15,7 @@
       "**/*"
     ],
     "android": {
-      "package": "com.example.climbingroutine",
+      "package": "com.diarselimi.climbingroutine",
       "permissions": [
         "FOREGROUND_SERVICE",
         "WAKE_LOCK",
@@ -27,7 +27,7 @@
       }
     },
     "ios": {
-      "bundleIdentifier": "com.example.climbingroutine"
+      "bundleIdentifier": "com.diarselimi.climbingroutine"
     }
   }
 }
